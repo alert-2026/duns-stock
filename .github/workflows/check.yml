@@ -1,0 +1,46 @@
+name: duns-stock
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_message:
+        description: "Only send a Telegram test message"
+        type: boolean
+        default: false
+concurrency:
+  group: duns-stock
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send test message
+        if: ${{ inputs.test_message }}
+        run: python3 check_stock.py --test-message
+      # state.json lives in the Actions cache (not in git) so runs don't create commits
+      - name: Restore state
+        if: ${{ !inputs.test_message }}
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: duns-state-${{ github.run_id }}
+          restore-keys: duns-state-
+      - name: Check stock
+        if: ${{ !inputs.test_message }}
+        run: |
+          python3 check_stock.py
+          # one annotation with the run summary so it can be read without opening the logs
+          grep -E 'SKIP|run:|changes=' log.txt | tail -20 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=duns-stock::/'; echo
+      - name: Save state
+        if: ${{ !inputs.test_message && hashFiles('state.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: duns-state-${{ github.run_id }}
