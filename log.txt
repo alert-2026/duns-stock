@@ -1,0 +1,78 @@
+2026-10-01 17:28:42 SIZE gurm: DUNS SWEDEN 26SU DUNGAREE WAVE AND FISH  | 가능: 68cm (4-6m), 74cm (6-9m), 80cm (9-12m), 86cm (1-1.5y)
+2026-10-01 17:28:44 PAGE gurm 167301 bytes https://gurm.kr/product/duns-sweden-26su-dungaree-wave-and-fish-blue/20142/category/70/display/1/
+2026-10-01 17:28:46 SIZE gurm: DUNS SWEDEN 26SU DUNGAREE TUCAN VANILLA  | 가능: 68cm (4-6m), 74cm (6-9m), 80cm (9-12m), 86cm (1-1.5y)
+2026-10-01 17:28:48 PAGE gurm 167382 bytes https://gurm.kr/product/duns-sweden-26su-dungaree-tucan-vanilla-custard/20141/category/70/display/1/
+2026-10-01 17:28:50 SIZE gurm: DUNS SWEDEN 26SU DUNGAREE SURF PIG BLUE | 가능: 68cm (4-6m), 74cm (6-9m), 80cm (9-12m), 86cm (1-1.5y)
+2026-10-01 17:28:53 PAGE gurm 167166 bytes https://gurm.kr/product/duns-sweden-26su-dungaree-surf-pig-blue/20140/category/70/display/1/
+2026-10-01 17:28:58 SIZE cuddlybunny: [Duns Sweden] 던스스웨덴 Radish Bonnet - Pink | 가능: 42 (3-6m), 49 (12-18m) (품절: 45 (6-9m), 47 (9-12m))
+2026-10-01 17:29:00 PAGE cuddlybunny 125243 bytes https://cuddlybunny.co.kr/product/detail.html?product_no=2521&cate_no=72&display_group=1
+2026-10-01 17:29:02 SIZE cuddlybunny: [Duns Sweden] 던스스웨덴 Radish Bonnet - Oran | 가능: 45 (6-9m), 47 (9-12m), 49 (12-18m)
+2026-10-01 17:29:04 PAGE cuddlybunny 124096 bytes https://cuddlybunny.co.kr/product/detail.html?product_no=2520&cate_no=72&display_group=1
+2026-10-01 17:29:06 SIZE cuddlybunny: [Duns Sweden] 던스스웨덴 Radish Bonnet - Brow | 가능: 45 (6-9m), 47 (9-12m), 49 (12-18m)
+2026-10-01 17:29:07 PAGE cuddlybunny 124075 bytes https://cuddlybunny.co.kr/product/detail.html?product_no=2519&cate_no=72&display_group=1
+2026-10-01 17:29:09 SIZE pulev: [Duns 26AW - 17] 보넷 - 순무｜오렌지 | 가능: 18m (49) (품절: 6-9m (45), 12m (47))
+2026-10-01 17:29:10 PAGE pulev 197904 bytes https://pulev.co.kr/product/detail.html?product_no=33709
+2026-10-01 17:29:11 SIZE pulev: [Duns 26AW - 15] 보넷 - 멀티 순무｜블루 | 가능: 12m (47), 18m (49) (품절: 6-9m (45))
+2026-10-01 17:29:12 PAGE pulev 197903 bytes https://pulev.co.kr/product/detail.html?product_no=33707
+2026-10-01 17:29:13 SIZE pulev: [Duns 26AW - 13] 보넷 - 미니 순무｜라이트 브라운 | 가능: 18m (49) (품절: 6-9m (45), 12m (47))
+2026-10-01 17:29:14 PAGE pulev 198065 bytes https://pulev.co.kr/product/detail.html?product_no=33705
+2026-10-01 17:29:16 SIZE babybubble: 던스 구매 가이드 | unknown
+2026-10-01 17:29:19 SIZE babybubble: Autumn 2026 | Clover – Red/ Pink. Red Ta | 가능: 3-4Y(104), 5-6Y(116) (품절: 12-18M(86), 18-24M(92), 2-3Y(98), 4-5Y(110), 6-7Y(122), 7-8(128))
+2026-10-01 17:29:20 PAGE babybubble 173666 bytes https://babybubble.co.kr/product/autumn-2026-clover-red-pink-red-taping-long-sleeve-top/4237/category/179/display/1/
+2026-10-01 17:29:22 SIZE babybubble: Autumn 2026 | Clover – Red/ Pink. Red Ta | 가능: 1-2Y(86/92) (품절: 9-12M(74/80), 3-4Y(98/104), 5-6Y(110/116), 7-8Y(122/128))
+2026-10-01 17:29:24 PAGE babybubble 169721 bytes https://babybubble.co.kr/product/autumn-2026-clover-red-pink-red-taping-baggy-pants/4233/category/179/display/1/
+2026-10-01 17:29:26 SIZE bbambam: Play Suit / Tiny Radish_Strawberry Cream | unknown
+2026-10-01 17:29:26 SIZE bbambam: Summer Suit / Tiny Radish_Strawberry Cre | unknown
+2026-10-01 17:29:26 SIZE bbambam: Short Sleeve Top / Tiny Radish_Strawberr | unknown
+2026-10-01 17:29:30 SIZE checkanddot: [DUNS]Long Sleeve Top Flower Pot | 가능: 12-18M(86), 3-4Y(104) (품절: 18-24M(92), 2-3Y(98), 4-5Y(110), 5-6Y(116))
+2026-10-01 17:29:32 PAGE checkanddot 150724 bytes https://checkanddot.com/product/dunslong-sleeve-top-flower-pot/19328/category/488/display/1/
+2026-10-01 17:29:34 SIZE checkanddot: [DUNS]Bonnet _ Radish _ Brown | 가능: 6-9M(45), 12M(47), 18M(49)
+2026-10-01 17:29:36 PAGE checkanddot 146950 bytes https://checkanddot.com/product/dunsbonnet-radish-brown/19270/category/488/display/1/
+2026-10-01 17:29:38 SIZE checkanddot: [DUNS] Dungaree _Radish _ Brown | 가능: 6-9M(74), 9-12M(80), 12-18M(86) (품절: 18-24M(92))
+2026-10-01 17:29:40 PAGE checkanddot 148235 bytes https://checkanddot.com/product/duns-dungaree-radish-brown/19268/category/488/display/1/
+2026-10-01 17:29:42 SIZE dearmykiz: 던스 26 가을 - 레드클로버 | unknown
+2026-10-01 17:29:42 SIZE dearmykiz: 던스 26 SUMMER - 핑크클로버 | unknown
+2026-10-01 17:29:42 SIZE dearmykiz: 던스 26 SUMMER - 그린애쉬 클로버 | unknown
+2026-10-01 17:29:44 SIZE littleluna: [DUNS] 던스스웨덴 26SU 덩가리 크로버 그린애쉬 Dungaree  | unknown
+2026-10-01 17:29:44 SIZE littleluna: [DUNS] 던스스웨덴 26SP 덩가리 순무 그린 Dungaree - R | unknown
+2026-10-01 17:29:44 SIZE littleluna: [DUNS] 던스스웨덴 26SU 덩가리 크로버 레이디언트 옐로우 Dung | unknown
+2026-10-01 17:29:48 SIZE coupleshot: 던스스웨덴,DUNS SWEDEN Long Sleeve Top - Clov | 가능: 없음 (품절: 12-18m(86), 1-2Y(92), 2-3Y(98), 3-4Y(104), 4-5Y(110), 5-6Y(116), 6-7Y(122))
+2026-10-01 17:29:49 PAGE coupleshot 136222 bytes http://www.coupleshot.com/shop/shopdetail.html?branduid=575492&xcode=054&mcode=015&scode=&type=X&search=&sort=order
+2026-10-01 17:29:51 SIZE coupleshot: 던스스웨덴,DUNS SWEDEN Long Sleeve Top - Clov | 가능: 없음 (품절: 12-18m(86), 1-2Y(92), 2-3Y(98), 3-4Y(104), 4-5Y(110), 5-6Y(116), 6-7Y(122))
+2026-10-01 17:29:54 PAGE coupleshot 136350 bytes http://www.coupleshot.com/shop/shopdetail.html?branduid=575528&xcode=054&mcode=015&scode=&type=X&search=&sort=order
+2026-10-01 17:29:56 SIZE coupleshot: 던스스웨덴,DUNS SWEDEN Long Sleeve Top - Clov | 가능: 없음 (품절: 12-18m(86), 1-2Y(92), 2-3Y(98), 3-4Y(104), 4-5Y(110), 5-6Y(116), 6-7Y(122))
+2026-10-01 17:29:58 PAGE coupleshot 136328 bytes http://www.coupleshot.com/shop/shopdetail.html?branduid=575394&xcode=054&mcode=015&scode=&type=X&search=&sort=order
+2026-10-01 17:30:04 SIZE rulii: 던스스웨덴 써머수트 - 타이니 순무 딸기 크림 Tiny Radish St | 가능: 68(4-6m), 74(6-9m), 80(9-12m), 86(12-18m), 92(18-24m)
+2026-10-01 17:30:05 PAGE rulii 149851 bytes https://m.rulii.co.kr/product/detail.html?product_no=5084&cate_no=338&display_group=1
+2026-10-01 17:30:08 SIZE rulii: 던스스웨덴 반팔탑 - 타이니 순무 딸기 크림 Tiny Radish Str | 가능: 116(5-6Y) (품절: 98(2-3Y), 104(3-4Y), 110(4-5Y), 122(6-7Y))
+2026-10-01 17:30:10 PAGE rulii 151378 bytes https://m.rulii.co.kr/product/detail.html?product_no=5083&cate_no=338&display_group=1
+2026-10-01 17:30:12 SIZE rulii: 던스스웨덴 플레이수트 - 타이니 순무 딸기 크림 Tiny Radish S | 가능: 68(4-6m), 74(6-9m), 80(9-12m), 86(12-18m), 92(18-24m)
+2026-10-01 17:30:14 PAGE rulii 150154 bytes https://m.rulii.co.kr/product/detail.html?product_no=5081&cate_no=338&display_group=1
+2026-10-01 17:30:16 SIZE mimilemonde: 플레이수트 클라우드크림 | unknown
+2026-10-01 17:30:17 PAGE mimilemonde 394844 bytes https://mimilemonde.com/39/?idx=1094
+2026-10-01 17:30:18 SIZE mimilemonde: 덩가리 스트로베리 크림 | unknown
+2026-10-01 17:30:20 PAGE mimilemonde 394821 bytes https://mimilemonde.com/39/?idx=1088
+2026-10-01 17:30:20 SIZE mimilemonde: 덩가리 클라우드 크림 | unknown
+2026-10-01 17:30:21 PAGE mimilemonde 394779 bytes https://mimilemonde.com/39/?idx=1087
+2026-10-01 17:31:06 SIZE foretforet: skip (parsed 0 products (0 bytes))
+2026-10-01 17:31:13 SIZE coconjennie: Short Pants / 순무 - 씨트론 | unknown
+2026-10-01 17:31:14 PAGE coconjennie 120010 bytes https://coconjennie.com/product/18a8d2c0-94eb-4266-8ffc-36135082b43d-1036-1303
+2026-10-01 17:31:14 SIZE coconjennie: Bonnet - 순무 - 씨트론 | unknown
+2026-10-01 17:31:15 PAGE coconjennie 118274 bytes https://coconjennie.com/product/c93b0222-abb9-4506-9eb1-061fc4f19896-1297
+2026-10-01 17:31:16 SIZE coconjennie: 민소매 게더 드레스 - 순무 - 씨트론 | unknown
+2026-10-01 17:31:16 PAGE coconjennie 120742 bytes https://coconjennie.com/product/69480187-c80e-4902-9813-b50d162111d0-1280
+2026-10-01 17:31:23 SIZE coconjennie2: 반팔 탑 - 토마토 - 핑크 | unknown
+2026-10-01 17:31:24 PAGE coconjennie2 121476 bytes https://coconjennie.com/product/e54a20f2-026f-4ec8-bcfc-02dd62308b80-1478
+2026-10-01 17:31:25 SIZE coconjennie2: 반팔 탑 - 토마토 - 브라운 | unknown
+2026-10-01 17:31:25 PAGE coconjennie2 120634 bytes https://coconjennie.com/product/e54a20f2-026f-4ec8-bcfc-02dd62308b80-1477
+2026-10-01 17:31:26 SIZE coconjennie2: 긴팔 탑 - 순무 - 오렌지 | unknown
+2026-10-01 17:31:26 PAGE coconjennie2 116419 bytes https://coconjennie.com/product/7bbb9ae1-e51c-4459-9600-1d0d84987efb-1465
+2026-10-01 17:31:33 SIZE blingandon: 구매전 안내 | unknown
+2026-10-01 17:31:35 PAGE blingandon 125537 bytes https://www.blingandon.com/product/901a3963-9f3a-4e00-8f4e-df491abf9748-4-4753-48
+2026-10-01 17:31:36 SIZE blingandon: 당일발송 [DUNS] 가을26 고깔햇 - 쉽 트릭 / 그린 | unknown
+2026-10-01 17:31:37 PAGE blingandon 135832 bytes https://www.blingandon.com/product/6e96e6d4-b70e-47-474-496-6019-6
+2026-10-01 17:31:38 SIZE blingandon: 당일발송 [DUNS] 가을26 고깔햇 - 마더어스 / 블랙 | unknown
+2026-10-01 17:31:38 PAGE blingandon 135876 bytes https://www.blingandon.com/product/6e96e6d4-b70e-47-474-496-6019-6020-6021-6-6025
+2026-10-01 17:31:42 SIZE official: Solid | Short Sleeve Top | Prism Pink | 가능: 86/92 cl | 1-2 years
+2026-10-01 17:31:42 SIZE official: Solid | Short Sleeve Top | Jelly Bean Gr | 가능: 86/92 cl | 1-2 years
+2026-10-01 17:31:42 SIZE official: Solid | Short Sleeve Top | Poppy Red | 가능: 98/104 cl | 3-4 years (품절: 86/92 cl | 1-2 years)
