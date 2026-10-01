@@ -17,12 +17,12 @@ jobs:
       - run: python3 check_stock.py --size-test || true
       - name: Publish result
         run: |
-          cp log.txt /tmp/size-test.txt
+          cp log.txt /tmp/size-test.txt; cp -r pages /tmp/pages || true
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git checkout --orphan status
           git rm -rfq .
-          cp /tmp/size-test.txt size-test.txt
-          git add size-test.txt
+          cp /tmp/size-test.txt size-test.txt; cp -r /tmp/pages pages || true
+          git add -A
           git commit -qm "Size test result"
           git push -f origin status

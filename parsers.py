@@ -189,6 +189,29 @@ def parse_sixshop(page, base):
     return items
 
 
+# ---------------------------------------------------------------- Shopify (products.json)
+def parse_shopify(data, base):
+    items = []
+    for p in data.get('products', []):
+        avail, out = [], []
+        for v in p.get('variants', []):
+            label = v.get('title') or ''
+            if label == 'Default Title':
+                label = ''
+            (avail if v.get('available') else out).append(label)
+        prices = [float(v['price']) for v in p.get('variants', []) if v.get('price')]
+        items.append({
+            'id': str(p['id']),
+            'name': p.get('title', ''),
+            'price': ('%s SEK' % ('{:,.0f}'.format(min(prices)))) if prices else '',
+            'url': '%s/products/%s' % (base.rstrip('/'), p.get('handle', '')),
+            'soldout': not avail,
+            'sizes': [x for x in avail if x],
+            'sizes_out': [x for x in out if x],
+        })
+    return items
+
+
 # ---------------------------------------------------------------- product sizes
 def _option_label(text):
     t = clean(text)

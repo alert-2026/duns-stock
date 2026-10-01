@@ -43,6 +43,7 @@ SHOPS = [
     ('foretforet', '포레포레', 'https://www.foretforet.com/shop/shopbrand.html?xcode=021&mcode=001&scode=090&type=Y', 'foret', True),
     ('coconjennie', '코코앤제니', 'https://coconjennie.com/untitled-31', 'sixshop', True),
     ('blingandon', '블링앤온', 'https://www.blingandon.com/dunssweden', 'sixshop', True),
+    ('official', '던스 공식몰', 'https://shopdunssweden.se', 'shopify', False),
 ]
 
 
@@ -114,12 +115,27 @@ def parse(kind, page, url):
     return getattr(parsers, 'parse_' + kind)(page, url)
 
 
-def size_line(url):
+def shopify_items(base):
+    """All products of a Shopify shop via its public products.json (sizes included)."""
+    items = []
+    for page in range(1, 11):
+        data = json.loads(fetch('%s/products.json?limit=250&page=%d' % (base, page)))
+        got = parsers.parse_shopify(data, base)
+        items += got
+        if len(data.get('products', [])) < 250:
+            break
+    return items
+
+
+def size_line(url, it=None):
     """'가능: 80, 86 (품절: 74)' line for an alert, or '' when sizes can't be read."""
-    try:
-        found = parsers.parse_sizes(fetch(url))
-    except Exception:  # noqa: BLE001 - sizes are a bonus, never block the alert
-        return ''
+    if it and 'sizes' in it:
+        found = it['sizes'], it.get('sizes_out', [])
+    else:
+        try:
+            found = parsers.parse_sizes(fetch(url))
+        except Exception:  # noqa: BLE001 - sizes are a bonus, never block the alert
+            return ''
     if not found:
         return ''
     avail, out = found
@@ -132,8 +148,11 @@ def size_line(url):
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
-        page = fetch_rendered(url, key) if js else fetch(url)
-        items = parse(kind, page, url)
+        if kind == 'shopify':
+            items, page = shopify_items(url), ''
+        else:
+            page = fetch_rendered(url, key) if js else fetch(url)
+            items = parse(kind, page, url)
     except Exception as e:  # noqa: BLE001 - one bad shop must not stop the run
         return key, None, '%s: %s' % (type(e).__name__, e)
     if not items:
@@ -218,18 +237,22 @@ def main():
             elif not old.get('soldout') and it['soldout']:
                 changes.append(('품절', names[key], it))
                 n_changes += 1
+            elif 'sizes' in old and set(it.get('sizes', [])) - set(old['sizes']):
+                # shops that list per-size stock (official store): a size came back
+                changes.append(('사이즈 재입고', names[key], it))
+                n_changes += 1
             known[it['id']] = dict(it, last_seen=now)
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
 
     if changes:
-        order = {'재입고': 0, '신상': 1, '품절': 2}
+        order = {'재입고': 0, '사이즈 재입고': 0, '신상': 1, '품절': 2}
         changes.sort(key=lambda c: order[c[0]])
         head = '🔔 던스스웨덴 재고 변화 (%s, KST)' % datetime.now(KST).strftime('%-m/%-d %H:%M')
         blocks = [head]
         for label, shop, it in changes:
             extra = ' (품절)' if label == '신상' and it['soldout'] else ''
             line2 = it['name'] + (' · ' + it['price'] if it['price'] else '') + extra
-            sizes = size_line(it['url']) if label != '품절' else ''
+            sizes = size_line(it['url'], it) if label != '품절' else ''
             blocks.append('[%s] %s\n%s\n%s%s' % (label, shop, line2, sizes, it['url']))
         sent = telegram_send('\n\n'.join(blocks))
         log('changes=%d sent=%s' % (len(changes), sent))
@@ -249,8 +272,15 @@ if __name__ == '__main__':
             if err or not items:
                 log('SIZE %s: skip (%s)' % (key, err))
                 continue
-            it = items[0]
-            log('SIZE %s: %s | %s' % (key, it['name'][:40], size_line(it['url']).strip() or 'unknown'))
+            for it in items[:3]:
+                log('SIZE %s: %s | %s' % (key, it['name'][:40], size_line(it['url'], it).strip() or 'unknown'))
+                if 'sizes' not in it:
+                    os.makedirs('pages', exist_ok=True)
+                    try:
+                        with open('pages/%s-%s.html' % (key, it['id']), 'w', encoding='utf-8') as f:
+                            f.write(fetch(it['url']))
+                    except Exception:  # noqa: BLE001
+                        pass
     elif len(sys.argv) > 1 and sys.argv[1] == '--test-message':
         print('sent' if telegram_send('던스스웨덴 재고 알림이 연결됐어요') else 'failed')
     else:
