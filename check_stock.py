@@ -229,14 +229,13 @@ def main():
         n_changes = 0
         for it in items:
             old = known.get(it['id'])
+            # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
-                changes.append(('신상', names[key], it))
-                n_changes += 1
+                if not it['soldout']:
+                    changes.append(('신상', names[key], it))
+                    n_changes += 1
             elif old.get('soldout') and not it['soldout']:
                 changes.append(('재입고', names[key], it))
-                n_changes += 1
-            elif not old.get('soldout') and it['soldout']:
-                changes.append(('품절', names[key], it))
                 n_changes += 1
             elif 'sizes' in old and set(it.get('sizes', [])) - set(old['sizes']):
                 # shops that list per-size stock (official store): a size came back
