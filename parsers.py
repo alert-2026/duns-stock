@@ -238,21 +238,26 @@ def parse_sizes(page):
                 label = _option_label(str(label))
                 if not label or opt.get('is_display') == 'F':
                     continue
-                selling = opt.get('is_selling', 'T') == 'T'
-                stocked = not opt.get('use_stock') or opt.get('use_soldout') != 'T' \
-                    or float(opt.get('stock_number') or 0) > 0
-                (avail if selling and stocked else out).append(label)
+                # public pages only carry stock_number for options that ran out
+                soldout = opt.get('is_selling', 'T') != 'T' or opt.get('is_auto_soldout') == 'T' or (
+                    opt.get('use_stock') and opt.get('use_soldout') == 'T'
+                    and opt.get('stock_number') is not None and float(opt['stock_number']) <= 0)
+                (out if soldout else avail).append(label)
             if avail or out:
                 return avail, out
-    # Generic: <select> options, sold-out ones carry "품절"/"sold out" in their text
+    # Generic: <select> options (MakeShop leaves them unclosed), sold-out ones say 품절/sold out
     avail, out = [], []
     for sel in re.findall(r'<select[^>]*>(.*?)</select>', page, flags=re.S | re.I):
-        for val, txt in re.findall(r'<option[^>]*value="([^"]*)"[^>]*>(.*?)</option>', sel, flags=re.S | re.I):
-            label = _option_label(txt)
-            if not val or not label or val in ('*', '**') or label.startswith(('-', '[필수]', '선택')) \
-                    or '옵션' in label or '선택' in label:
+        for attrs, txt in re.findall(r'<option\b([^>]*)>(.*?)(?=<option\b|</option>|$)', sel, flags=re.S | re.I):
+            val = re.search(r'value=["\']?([^"\'\s>]*)', attrs)
+            if not val or not val.group(1) or val.group(1) in ('*', '**'):
                 continue
-            if re.search(r'품절|sold\s*out', txt, flags=re.I) or 'disabled' in sel.split(txt)[0][-80:]:
+            ori = re.search(r'ori_text="([^"]*)"', attrs)
+            label = _option_label(ori.group(1) if ori else txt)
+            if not label or label.startswith(('-', '[필수]')) or '옵션' in label or '선택' in label \
+                    or '★' in label or label.lower() == 'rating':
+                continue
+            if re.search(r'품절|sold\s*out', txt, flags=re.I) or re.search(r'\bdisabled\b', attrs):
                 out.append(label)
             else:
                 avail.append(label)

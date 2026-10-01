@@ -42,6 +42,7 @@ SHOPS = [
     ('mimilemonde', '미미르몽드', 'https://mimilemonde.com/39', 'imweb', False),
     ('foretforet', '포레포레', 'https://www.foretforet.com/shop/shopbrand.html?xcode=021&mcode=001&scode=090&type=Y', 'foret', True),
     ('coconjennie', '코코앤제니', 'https://coconjennie.com/untitled-31', 'sixshop', True),
+    ('coconjennie2', '코코앤제니', 'https://coconjennie.com/untitled-52', 'sixshop', True),
     ('blingandon', '블링앤온', 'https://www.blingandon.com/dunssweden', 'sixshop', True),
     ('official', '던스 공식몰', 'https://shopdunssweden.se', 'shopify', False),
 ]
@@ -277,8 +278,10 @@ if __name__ == '__main__':
                 if 'sizes' not in it:
                     os.makedirs('pages', exist_ok=True)
                     try:
+                        body = fetch(it['url'])
+                        log('PAGE %s %d bytes %s' % (key, len(body), it['url']))
                         with open('pages/%s-%s.html' % (key, it['id']), 'w', encoding='utf-8') as f:
-                            f.write(fetch(it['url']))
+                            f.write(body)
                     except Exception:  # noqa: BLE001
                         pass
     elif len(sys.argv) > 1 and sys.argv[1] == '--test-message':

@@ -22,7 +22,7 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git checkout --orphan status
           git rm -rfq .
-          cp /tmp/size-test.txt size-test.txt; cp -r /tmp/pages pages || true
+          cp /tmp/size-test.txt size-test.txt; mkdir -p pages; cp /tmp/pages/* pages/ || true
           git add -A
           git commit -qm "Size test result"
           git push -f origin status
