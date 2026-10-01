@@ -3,3 +3,4 @@ state.json
 state.json.tmp
 log.txt
 log.txt.old
+__pycache__/

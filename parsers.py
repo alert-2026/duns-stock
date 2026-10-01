@@ -187,3 +187,52 @@ def parse_sixshop(page, base):
             'soldout': 'soldOutBadge' in blk or bool(re.search(r'sold\s*out|품절', clean(price), flags=re.I)),
         })
     return items
+
+
+# ---------------------------------------------------------------- product sizes
+def _option_label(text):
+    t = clean(text)
+    t = re.sub(r'\s*\[?\(?\s*(품절|sold\s*out)\s*\)?\]?\s*', ' ', t, flags=re.I).strip()
+    return re.sub(r'\s*\(?[+-]\s*[\d,]+\s*원?\)?$', '', t).strip()
+
+
+def parse_sizes(page):
+    """Return (available, sold_out) option labels from a product detail page, or None if unknown."""
+    # Cafe24 keeps per-option stock in a JS variable
+    m = re.search(r"option_stock_data\s*=\s*'(.*?)';", page, flags=re.S)
+    if m:
+        try:
+            data = json.loads(m.group(1).replace("\\'", "'").encode().decode('unicode_escape')
+                              if '\\u' in m.group(1) else m.group(1).replace('\\"', '"'))
+        except ValueError:
+            data = None
+        if isinstance(data, dict) and data:
+            avail, out = [], []
+            for opt in data.values():
+                label = opt.get('option_value_orginal') or opt.get('option_value') or ''
+                if isinstance(label, list):
+                    label = '/'.join(str(x) for x in label)
+                label = _option_label(str(label))
+                if not label or opt.get('is_display') == 'F':
+                    continue
+                selling = opt.get('is_selling', 'T') == 'T'
+                stocked = not opt.get('use_stock') or opt.get('use_soldout') != 'T' \
+                    or float(opt.get('stock_number') or 0) > 0
+                (avail if selling and stocked else out).append(label)
+            if avail or out:
+                return avail, out
+    # Generic: <select> options, sold-out ones carry "품절"/"sold out" in their text
+    avail, out = [], []
+    for sel in re.findall(r'<select[^>]*>(.*?)</select>', page, flags=re.S | re.I):
+        for val, txt in re.findall(r'<option[^>]*value="([^"]*)"[^>]*>(.*?)</option>', sel, flags=re.S | re.I):
+            label = _option_label(txt)
+            if not val or not label or val in ('*', '**') or label.startswith(('-', '[필수]', '선택')) \
+                    or '옵션' in label or '선택' in label:
+                continue
+            if re.search(r'품절|sold\s*out', txt, flags=re.I) or 'disabled' in sel.split(txt)[0][-80:]:
+                out.append(label)
+            else:
+                avail.append(label)
+    if avail or out:
+        return avail, out
+    return None

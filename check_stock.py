@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -88,12 +89,19 @@ def fetch_rendered(url, key):
                           '--no-default-browser-check', '--user-data-dir=' + profile,
                           '--user-agent=' + UA, '--virtual-time-budget=15000', '--dump-dom', url],
                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    # headless Chrome often keeps running after dumping the DOM, so stop reading at </html>
+    timer = threading.Timer(45, p.kill)
+    timer.start()
+    out = b''
     try:
-        out, _ = p.communicate(timeout=45)
-    except subprocess.TimeoutExpired:
-        # headless Chrome sometimes keeps running after dumping the DOM
+        for chunk in iter(lambda: p.stdout.read1(65536), b''):
+            out += chunk
+            if out.rstrip().endswith(b'</html>'):
+                break
+    finally:
+        timer.cancel()
         p.kill()
-        out, _ = p.communicate()
+        p.wait()
     return out.decode('utf-8', errors='replace')
 
 
@@ -104,6 +112,21 @@ def parse(kind, page, url):
         # its skin prints a "SOLD OUT" span on every item (shown via CSS), so only icons count
         return parsers.parse_cafe24(page, url, class_marker=False)
     return getattr(parsers, 'parse_' + kind)(page, url)
+
+
+def size_line(url):
+    """'가능: 80, 86 (품절: 74)' line for an alert, or '' when sizes can't be read."""
+    try:
+        found = parsers.parse_sizes(fetch(url))
+    except Exception:  # noqa: BLE001 - sizes are a bonus, never block the alert
+        return ''
+    if not found:
+        return ''
+    avail, out = found
+    line = '가능: ' + (', '.join(avail) if avail else '없음')
+    if out:
+        line += ' (품절: %s)' % ', '.join(out)
+    return line + '\n'
 
 
 def check_shop(shop):
@@ -206,7 +229,8 @@ def main():
         for label, shop, it in changes:
             extra = ' (품절)' if label == '신상' and it['soldout'] else ''
             line2 = it['name'] + (' · ' + it['price'] if it['price'] else '') + extra
-            blocks.append('[%s] %s\n%s\n%s' % (label, shop, line2, it['url']))
+            sizes = size_line(it['url']) if label != '품절' else ''
+            blocks.append('[%s] %s\n%s\n%s%s' % (label, shop, line2, sizes, it['url']))
         sent = telegram_send('\n\n'.join(blocks))
         log('changes=%d sent=%s' % (len(changes), sent))
         if not sent:
@@ -219,7 +243,15 @@ def main():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == '--test-message':
+    if len(sys.argv) > 1 and sys.argv[1] == '--size-test':
+        # print the sizes read from the first product of each shop (no alerts, no state change)
+        for key, items, err in map(check_shop, SHOPS):
+            if err or not items:
+                log('SIZE %s: skip (%s)' % (key, err))
+                continue
+            it = items[0]
+            log('SIZE %s: %s | %s' % (key, it['name'][:40], size_line(it['url']).strip() or 'unknown'))
+    elif len(sys.argv) > 1 and sys.argv[1] == '--test-message':
         print('sent' if telegram_send('던스스웨덴 재고 알림이 연결됐어요') else 'failed')
     else:
         main()

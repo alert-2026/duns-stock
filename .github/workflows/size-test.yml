@@ -1,0 +1,28 @@
+# Manual check that product sizes can be read at every shop.
+# Runs when something is pushed to the size-test branch and writes the result to the status branch.
+name: size-test
+on:
+  push:
+    branches: [size-test]
+permissions:
+  contents: write
+jobs:
+  sizes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 check_stock.py --size-test || true
+      - name: Publish result
+        run: |
+          cp log.txt /tmp/size-test.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git checkout --orphan status
+          git rm -rfq .
+          cp /tmp/size-test.txt size-test.txt
+          git add size-test.txt
+          git commit -qm "Size test result"
+          git push -f origin status
