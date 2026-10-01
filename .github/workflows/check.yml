@@ -8,6 +8,8 @@ on:
         description: "Only send a Telegram test message"
         type: boolean
         default: false
+permissions:
+  contents: write
 concurrency:
   group: duns-stock
   cancel-in-progress: false
@@ -44,3 +46,16 @@ jobs:
         with:
           path: state.json
           key: duns-state-${{ github.run_id }}
+      # last run summary on the heartbeat branch, so the schedule can be checked without the API
+      - name: Heartbeat
+        if: ${{ !inputs.test_message && always() }}
+        run: |
+          tail -5 log.txt > /tmp/heartbeat.txt || true
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git checkout -q --orphan heartbeat
+          git rm -rfq .
+          cp /tmp/heartbeat.txt heartbeat.txt
+          git add heartbeat.txt
+          git commit -qm "Last run (${{ github.event_name }})"
+          git push -qf origin heartbeat
