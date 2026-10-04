@@ -1,0 +1,2 @@
+2026-10-04 14:28:09 SKIP official (던스 공식몰): HTTPError: HTTP Error 429: Too Many Requests
+2026-10-04 14:28:09 run: gurm:32 cuddlybunny:30 pulev:12 babybubble:24 bbambam:10 checkanddot:100 dearmykiz:36 littleluna:12 coupleshot:60 rulii:100 mimilemonde:96 foretforet:12 coconjennie:90 coconjennie2:85 blingandon:70 official:skip
