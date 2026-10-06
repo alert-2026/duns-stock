@@ -47,6 +47,8 @@ SHOPS = [
     ('coconjennie2', '코코앤제니', 'https://coconjennie.com/untitled-52', 'sixshop', True),
     ('blingandon', '블링앤온', 'https://www.blingandon.com/dunssweden', 'sixshop', True),
     ('official', '던스 공식몰', 'https://shopdunssweden.se', 'shopify', False),
+    ('mnkl', '엠엔케이엘', 'https://mnkl.co.kr/category/duns-sweden/254/', 'cafe24', False),
+    ('happylittleattic', '해피리틀애틱', 'https://happylittleattic.com/collections/duns-sweden', 'shopify', False),
 ]
 
 
