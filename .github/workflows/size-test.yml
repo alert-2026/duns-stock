@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 check_stock.py --size-test || true
+      - name: Probe Shopify
+        run: |
+          for u in "https://happylittleattic.com/collections/duns-sweden/products.json?limit=250&page=1" "https://happylittleattic.com/collections/duns-sweden/products.json?limit=50" "https://happylittleattic.com/collections/duns-sweden" "https://happylittleattic.com/collections/duns-sweden.atom" "https://shopdunssweden.se/products.json?limit=250&page=1"; do
+            for i in 1 2; do echo "PROBE $(curl -s -o /tmp/b -w '%{http_code} %{size_download}' -A 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/129.0.0.0 Safari/537.36' "$u") $u" >> log.txt; sleep 3; done
+          done
       - name: Publish result
         run: |
           cp log.txt /tmp/size-test.txt; cp -r pages /tmp/pages || true
