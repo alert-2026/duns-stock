@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -120,7 +122,14 @@ def shopify_items(base):
     """All products of a Shopify shop via its public products.json (sizes included)."""
     items = []
     for page in range(1, 11):
-        data = json.loads(fetch('%s/products.json?limit=250&page=%d' % (base, page)))
+        url = '%s/products.json?limit=250&page=%d' % (base, page)
+        try:
+            data = json.loads(fetch(url))
+        except urllib.error.HTTPError as e:
+            if e.code != 429:
+                raise
+            time.sleep(10)  # rate limited: wait once and retry
+            data = json.loads(fetch(url))
         got = parsers.parse_shopify(data, base)
         items += got
         if len(data.get('products', [])) < 250:

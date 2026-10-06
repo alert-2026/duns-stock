@@ -37,7 +37,9 @@ jobs:
       - name: Check stock
         if: ${{ !inputs.test_message }}
         run: |
-          python3 check_stock.py
+          # a stuck shop page must never hang the job until GitHub cancels it (that sends a failure email);
+          # an unfinished run saves nothing, so the next run simply checks again
+          timeout 300 python3 check_stock.py || echo "run stopped early (exit $?)"
           # one annotation with the run summary so it can be read without opening the logs
           grep -E 'SKIP|run:|changes=' log.txt | tail -20 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=duns-stock::/'; echo
       - name: Save state
