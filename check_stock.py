@@ -81,7 +81,7 @@ def decode(raw, content_type=''):
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept-Language': 'ko-KR,ko;q=0.9'})
+    req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': '*/*', 'Accept-Language': 'ko-KR,ko;q=0.9'})
     with urllib.request.urlopen(req, timeout=30) as r:
         return decode(r.read(), r.headers.get('Content-Type', ''))
 
