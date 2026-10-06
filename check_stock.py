@@ -11,8 +11,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
-import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -86,6 +84,15 @@ def fetch(url):
         return decode(r.read(), r.headers.get('Content-Type', ''))
 
 
+def fetch_curl(url):
+    """Shopify answers Python's urllib with 429 but serves curl, so use curl there."""
+    out = subprocess.run(['curl', '-sS', '--fail', '--max-time', '30', '-A', UA, url],
+                         capture_output=True, timeout=40)
+    if out.returncode != 0:
+        raise RuntimeError('curl failed: %s' % out.stderr.decode(errors='replace').strip()[:200])
+    return out.stdout.decode('utf-8', errors='replace')
+
+
 def fetch_rendered(url, key):
     """Render a JS page with the installed Google Chrome (separate throwaway profile)."""
     if not os.path.exists(CHROME):
@@ -124,14 +131,7 @@ def shopify_items(base):
     """All products of a Shopify shop via its public products.json (sizes included)."""
     items = []
     for page in range(1, 11):
-        url = '%s/products.json?limit=250&page=%d' % (base, page)
-        try:
-            data = json.loads(fetch(url))
-        except urllib.error.HTTPError as e:
-            if e.code != 429:
-                raise
-            time.sleep(10)  # rate limited: wait once and retry
-            data = json.loads(fetch(url))
+        data = json.loads(fetch_curl('%s/products.json?limit=250&page=%d' % (base, page)))
         got = parsers.parse_shopify(data, base)
         items += got
         if len(data.get('products', [])) < 250:
