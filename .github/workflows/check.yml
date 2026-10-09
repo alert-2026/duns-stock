@@ -21,6 +21,7 @@ jobs:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       CHROME_PATH: /usr/bin/google-chrome
+      SIZE_SCAN: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Send test message

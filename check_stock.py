@@ -218,10 +218,46 @@ def telegram_send(text):
     return ok
 
 
+# shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
+# since opening every product page each minute on the Mac would be too many requests
+SIZE_SCAN_SHOPS = {'gurm', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot'}
+
+
+def scan_sizes(results, state):
+    """Add 'sizes'/'sizes_out' to on-sale items of SIZE_SCAN_SHOPS by opening their product pages."""
+    jobs = []
+    for key, items, err in results:
+        if err or key not in SIZE_SCAN_SHOPS:
+            continue
+        known = state.get(key) or {}
+        for it in items:
+            # sold-out items are caught by the regular [재입고] alert when they come back
+            if not it['soldout']:
+                jobs.append((it, known.get(it['id'], {})))
+
+    def one(job):
+        it, old = job
+        try:
+            found = parsers.parse_sizes(fetch(it['url']))
+        except Exception:  # noqa: BLE001
+            found = None
+        if found:
+            it['sizes'], it['sizes_out'] = found
+        elif 'sizes' in old:
+            # page could not be read this time: keep what we knew so nothing is falsely alerted
+            it['sizes'], it['sizes_out'] = old['sizes'], old.get('sizes_out', [])
+
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        list(ex.map(one, jobs))
+    return len(jobs)
+
+
 def main():
     state = load_json(STATE, {})
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(check_shop, SHOPS))
+    if os.environ.get('SIZE_SCAN') == '1':
+        log('size scan: %d product pages' % scan_sizes(results, state))
 
     names = {s[0]: s[1] for s in SHOPS}
     changes = []
@@ -249,10 +285,11 @@ def main():
                 changes.append(('재입고', names[key], it))
                 n_changes += 1
             elif 'sizes' in old and set(it.get('sizes', [])) - set(old['sizes']):
-                # shops that list per-size stock (official store): a size came back
+                # a size came back on an item that was already partly on sale
+                it['new_sizes'] = [x for x in it['sizes'] if x not in old['sizes']]
                 changes.append(('사이즈 재입고', names[key], it))
                 n_changes += 1
-            known[it['id']] = dict(it, last_seen=now)
+            known[it['id']] = {k: v for k, v in dict(it, last_seen=now).items() if k != 'new_sizes'}
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
 
     if changes:
@@ -264,6 +301,8 @@ def main():
             extra = ' (품절)' if label == '신상' and it['soldout'] else ''
             line2 = it['name'] + (' · ' + it['price'] if it['price'] else '') + extra
             sizes = size_line(it['url'], it) if label != '품절' else ''
+            if it.get('new_sizes'):
+                sizes = '새로 들어온 사이즈: %s\n%s' % (', '.join(it['new_sizes']), sizes)
             blocks.append('[%s] %s\n%s\n%s%s' % (label, shop, line2, sizes, it['url']))
         sent = telegram_send('\n\n'.join(blocks))
         log('changes=%d sent=%s' % (len(changes), sent))
