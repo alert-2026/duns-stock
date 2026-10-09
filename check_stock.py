@@ -220,7 +220,7 @@ def telegram_send(text):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot'}
+SIZE_SCAN_SHOPS = {'gurm', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot', 'foretforet'}
 
 
 def scan_sizes(results, state):

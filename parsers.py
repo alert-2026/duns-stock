@@ -257,7 +257,12 @@ def parse_sizes(page):
             if not label or label.startswith(('-', '[필수]')) or '옵션' in label or '선택' in label \
                     or '★' in label or label.lower() == 'rating':
                 continue
-            if re.search(r'품절|sold\s*out', txt, flags=re.I) or re.search(r'\bdisabled\b', attrs):
+            # MakeShop's newer skin (Foret Foret) writes "COLORCODE,6_9M" and a sto_state per option
+            if re.match(r'^[A-Z]{2,4},\S+$', label):
+                label = label.split(',', 1)[1].replace('_', '-')
+            state = re.search(r'sto_state="([^"]*)"', attrs)
+            if re.search(r'품절|sold\s*out', txt, flags=re.I) or re.search(r'\bdisabled\b', attrs) \
+                    or (state and state.group(1) != 'SALE'):
                 out.append(label)
             else:
                 avail.append(label)
