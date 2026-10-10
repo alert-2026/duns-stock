@@ -157,6 +157,31 @@ def size_line(url, it=None):
     return line + '\n'
 
 
+def get_sizes(it):
+    """(available, sold_out) size lists, or None when the shop doesn't show sizes."""
+    if 'sizes' in it:
+        return it['sizes'], it.get('sizes_out', [])
+    try:
+        return parsers.parse_sizes(fetch(it['url']))
+    except Exception:  # noqa: BLE001 - sizes are a bonus, never block the alert
+        return None
+
+
+def alert_block(label, it):
+    """Same lines for every shop (layout samee approved 2026-10-11); unknown values stay blank."""
+    avail, out = get_sizes(it) or ([], [])
+    sizes = ', '.join(avail)
+    if it.get('new_sizes'):
+        sizes += ' (새로 들어옴: %s)' % ', '.join(it['new_sizes'])
+    return '\n'.join([
+        '[%s] %s' % (label, it['name']),
+        '가격: ' + it['price'],
+        '사이즈: ' + sizes,
+        '품절 사이즈: ' + ', '.join(out),
+        it['url'],
+    ])
+
+
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
@@ -298,12 +323,7 @@ def main():
         when = datetime.now(KST).strftime('%-m/%-d %H:%M')
         by_shop = {}
         for label, shop, it in changes:
-            extra = ' (품절)' if label == '신상' and it['soldout'] else ''
-            line2 = it['name'] + (' · ' + it['price'] if it['price'] else '') + extra
-            sizes = size_line(it['url'], it) if label != '품절' else ''
-            if it.get('new_sizes'):
-                sizes = '새로 들어온 사이즈: %s\n%s' % (', '.join(it['new_sizes']), sizes)
-            by_shop.setdefault(shop, []).append('[%s] %s\n%s%s' % (label, line2, sizes, it['url']))
+            by_shop.setdefault(shop, []).append(alert_block(label, it))
         # one Telegram message per shop (samee asked for this on 2026-10-10)
         sent = True
         for shop, blocks in by_shop.items():
