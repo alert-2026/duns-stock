@@ -295,16 +295,20 @@ def main():
     if changes:
         order = {'재입고': 0, '사이즈 재입고': 0, '신상': 1, '품절': 2}
         changes.sort(key=lambda c: order[c[0]])
-        head = '🔔 던스스웨덴 재고 변화 (%s, KST)' % datetime.now(KST).strftime('%-m/%-d %H:%M')
-        blocks = [head]
+        when = datetime.now(KST).strftime('%-m/%-d %H:%M')
+        by_shop = {}
         for label, shop, it in changes:
             extra = ' (품절)' if label == '신상' and it['soldout'] else ''
             line2 = it['name'] + (' · ' + it['price'] if it['price'] else '') + extra
             sizes = size_line(it['url'], it) if label != '품절' else ''
             if it.get('new_sizes'):
                 sizes = '새로 들어온 사이즈: %s\n%s' % (', '.join(it['new_sizes']), sizes)
-            blocks.append('[%s] %s\n%s\n%s%s' % (label, shop, line2, sizes, it['url']))
-        sent = telegram_send('\n\n'.join(blocks))
+            by_shop.setdefault(shop, []).append('[%s] %s\n%s%s' % (label, line2, sizes, it['url']))
+        # one Telegram message per shop (samee asked for this on 2026-10-10)
+        sent = True
+        for shop, blocks in by_shop.items():
+            head = '🔔 %s · 던스스웨덴 (%s, KST)' % (shop, when)
+            sent = telegram_send('\n\n'.join([head] + blocks)) and sent
         log('changes=%d sent=%s' % (len(changes), sent))
         if not sent:
             # keep the previous state so the same changes are retried next run
