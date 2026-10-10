@@ -157,6 +157,26 @@ def size_line(url, it=None):
     return line + '\n'
 
 
+def alert_block(label, it):
+    """Same fields for every shop; a field the shop doesn't give stays empty."""
+    category, pattern = parsers.describe(it['name'])
+    sizes = size_line(it['url'], it).strip()
+    sizes = sizes[len('가능: '):] if sizes.startswith('가능: ') else sizes
+    if it.get('new_sizes'):
+        sizes += ' ← 새로 들어옴: %s' % ', '.join(it['new_sizes'])
+    if label == '신상' and it['soldout']:
+        sizes = '품절 ' + sizes
+    return '\n'.join([
+        '[%s]' % label,
+        '종류: ' + category,
+        '컬러(패턴): ' + pattern,
+        '사이즈: ' + sizes,
+        '가격: ' + it['price'],
+        '상품명: ' + it['name'],
+        it['url'],
+    ])
+
+
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
@@ -298,12 +318,7 @@ def main():
         when = datetime.now(KST).strftime('%-m/%-d %H:%M')
         by_shop = {}
         for label, shop, it in changes:
-            extra = ' (품절)' if label == '신상' and it['soldout'] else ''
-            line2 = it['name'] + (' · ' + it['price'] if it['price'] else '') + extra
-            sizes = size_line(it['url'], it) if label != '품절' else ''
-            if it.get('new_sizes'):
-                sizes = '새로 들어온 사이즈: %s\n%s' % (', '.join(it['new_sizes']), sizes)
-            by_shop.setdefault(shop, []).append('[%s] %s\n%s%s' % (label, line2, sizes, it['url']))
+            by_shop.setdefault(shop, []).append(alert_block(label, it))
         # one Telegram message per shop (samee asked for this on 2026-10-10)
         sent = True
         for shop, blocks in by_shop.items():
@@ -328,6 +343,7 @@ if __name__ == '__main__':
                 continue
             for it in items[:3]:
                 log('SIZE %s: %s | %s' % (key, it['name'][:40], size_line(it['url'], it).strip() or 'unknown'))
+                log('FORMAT %s\n%s' % (key, alert_block('재입고', it)))
                 if 'sizes' not in it:
                     os.makedirs('pages', exist_ok=True)
                     try:

@@ -269,3 +269,56 @@ def parse_sizes(page):
     if avail or out:
         return avail, out
     return None
+
+
+# ---------------------------------------------------------------- unified alert fields
+# (keyword, Korean category); longer keywords first so "long sleeve body" wins over "body"
+_CATEGORIES = [
+    ('long sleeve body', '긴팔 바디수트'), ('short sleeve body', '반팔 바디수트'), ('긴팔 바디', '긴팔 바디수트'),
+    ('반팔 바디', '반팔 바디수트'), ('long sleeve top', '긴팔 탑'), ('short sleeve top', '반팔 탑'),
+    ('긴팔 탑', '긴팔 탑'), ('반팔 탑', '반팔 탑'), ('긴팔 티', '긴팔 탑'), ('반팔 티', '반팔 탑'),
+    ('long sleeve', '긴팔 탑'), ('short sleeve', '반팔 탑'), ('긴팔', '긴팔 탑'), ('반팔', '반팔 탑'),
+    ('summer suit', '썸머수트'), ('summersuit', '썸머수트'), ('써머수트', '썸머수트'), ('썸머수트', '썸머수트'),
+    ('play suit', '플레이수트'), ('playsuit', '플레이수트'), ('플레이수트', '플레이수트'),
+    ('dungaree', '덩가리'), ('덩가리', '덩가리'), ('던가리', '덩가리'),
+    ('baggy pants', '배기 팬츠'), ('배기 팬츠', '배기 팬츠'), ('배기팬츠', '배기 팬츠'),
+    ('short pants', '숏팬츠'), ('shorts', '숏팬츠'), ('숏팬츠', '숏팬츠'), ('반바지', '숏팬츠'),
+    ('jogger', '조거 팬츠'), ('조거', '조거 팬츠'), ('leggings', '레깅스'), ('레깅스', '레깅스'),
+    ('pants', '팬츠'), ('팬츠', '팬츠'), ('바지', '팬츠'),
+    ('body', '바디수트'), ('바디수트', '바디수트'), ('바디', '바디수트'),
+    ('romper', '롬퍼'), ('롬퍼', '롬퍼'), ('dress', '드레스'), ('드레스', '드레스'),
+    ('cardigan', '가디건'), ('가디건', '가디건'), ('sweater', '스웨터'), ('스웨터', '스웨터'),
+    ('sweatshirt', '맨투맨'), ('맨투맨', '맨투맨'), ('hoodie', '후디'), ('후디', '후디'),
+    ('jacket', '재킷'), ('재킷', '재킷'), ('자켓', '재킷'),
+    ('bonnet', '보넷'), ('보넷', '보넷'), ('sun hat', '썬햇'), ('sunhat', '썬햇'), ('썬햇', '썬햇'),
+    ('knot hat', '매듭 모자'), ('beanie', '비니'), ('비니', '비니'), ('고깔햇', '고깔 모자'),
+    ('hat', '모자'), ('모자', '모자'), ('bib', '턱받이'), ('턱받이', '턱받이'),
+    ('blanket', '블랭킷'), ('블랭킷', '블랭킷'), ('socks', '양말'), ('양말', '양말'),
+    ('top', '탑'), ('탑', '탑'), ('티셔츠', '탑'), ('set', '세트'), ('세트', '세트'),
+]
+_NOISE = re.compile(
+    r'duns\s*sweden|duns|sweden|던스\s*스웨덴|던스스웨덴|던스|스웨덴|당일발송|새상품|정품|'
+    r'\b(?:fall|autumn|spring|summer|winter|ss|aw|fw)\s*\d{2,4}\b|\b\d{2,4}\s*(?:su|sp|aw|fw|ss)\b|'
+    r'가을\s*\d{2}|여름\s*\d{2}|봄\s*\d{2}|겨울\s*\d{2}|\b\d{2}\s*(?:가을|여름|봄|겨울|summer|autumn)\b|'
+    r'\b[A-Z]{2}\d{2}[A-Z0-9]{4,}\b|\b\d{2,3}(?:[-/]\d{2,3})?\s*(?:cm)?\s*\(?\d{1,2}\s*-\s*\d{1,2}\s*[my]\)?|'
+    r'\b\d{1,2}\s*-\s*\d{1,2}\s*[my]\b',
+    flags=re.I)
+
+
+def describe(name):
+    """(category, color/pattern) guessed from a product name; '' when unknown."""
+    low = name.lower()
+    category, hit = '', ''
+    for kw, ko in _CATEGORIES:
+        if re.search(r'(?<![a-z])%s(?![a-z])' % re.escape(kw), low):
+            category, hit = ko, kw
+            break
+    rest = re.sub(r'\[[^\]]*\]', ' ', name)
+    rest = _NOISE.sub(' ', rest)
+    if hit:
+        words = {kw for kw, ko in _CATEGORIES if ko == category or category.endswith(ko) and ko != '탑'}
+        for kw in sorted(words, key=len, reverse=True):
+            rest = re.sub(r'(?<![A-Za-z])%s(?![A-Za-z])' % re.escape(kw), ' ', rest, flags=re.I)
+    rest = re.sub(r'[|｜/_,.·–—\-]+', ' ', rest)
+    rest = re.sub(r'\(\s*\)|\s+', ' ', rest).strip(' -:')
+    return category, rest
