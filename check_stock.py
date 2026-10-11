@@ -47,7 +47,10 @@ SHOPS = [
     ('official', '던스 공식몰', 'https://shopdunssweden.se', 'shopify', False),
     ('mnkl', '엠엔케이엘', 'https://mnkl.co.kr/category/duns-sweden/254/', 'cafe24', False),
     ('happylittleattic', '해피리틀애틱', 'https://happylittleattic.com/collections/duns-sweden', 'shopify', False),
+    # not a Duns shop: samee also wants Present Project's own products (whole shop)
+    ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
 ]
+NOT_DUNS = {'presentproject'}
 
 
 def log(msg):
@@ -322,12 +325,13 @@ def main():
         changes.sort(key=lambda c: order[c[0]])
         when = datetime.now(KST).strftime('%-m/%-d %H:%M')
         by_shop = {}
+        shop_keys = {s[1]: s[0] for s in SHOPS}
         for label, shop, it in changes:
             by_shop.setdefault(shop, []).append(alert_block(label, it))
         # one Telegram message per shop (samee asked for this on 2026-10-10)
         sent = True
         for shop, blocks in by_shop.items():
-            head = '🔔 %s · 던스스웨덴 (%s, KST)' % (shop, when)
+            head = ('🔔 %s (%s, KST)' if shop_keys[shop] in NOT_DUNS else '🔔 %s · 던스스웨덴 (%s, KST)') % (shop, when)
             sent = telegram_send('\n\n'.join([head] + blocks)) and sent
         log('changes=%d sent=%s' % (len(changes), sent))
         if not sent:
