@@ -186,20 +186,26 @@ def alert_block(label, it):
     ])
 
 
-PAGED = ('cafe24', 'littleluna', 'bbambam', 'coupleshot', 'imweb')
+PAGED = ('cafe24', 'littleluna', 'bbambam', 'coupleshot', 'imweb', 'sixshop')
 
 
-def more_pages(page, url, kind, first):
+def more_pages(page, url, kind, first, key):
     """Items on list pages 2..N (Pulev has 22 pages; restocks of older items show up there)."""
     last = MAX_PAGES
     m = re.search(r'xans-product-normalpaging(.*?)</div>', page, flags=re.S)
     if m:  # Cafe24 page links name the last page
         last = min(MAX_PAGES, max([int(n) for n in re.findall(r'[?&]page=(\d+)', m.group(1))] or [1]))
+    param = 'page'
+    if kind == 'sixshop':  # rendered pages are slow, so only read the pages its page buttons show
+        param = 'productListPage'
+        m = re.search(r'class="paginationNumbers"(.*?)</div></div>', page, flags=re.S)
+        last = min(MAX_PAGES, max([int(n) for n in re.findall(r'page="(\d+)"', m.group(1))] or [1]) if m else 1)
     more, seen = [], {it['id'] for it in first}
     for n in range(2, last + 1):
-        u = url + ('&' if '?' in url else '?') + 'page=%d' % n
+        u = url + ('&' if '?' in url else '?') + '%s=%d' % (param, n)
         # an error fails the whole shop, so nothing looks sold out by mistake
-        got = [it for it in parse(kind, fetch(u), u) if it['id'] not in seen]
+        html = fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
+        got = [it for it in parse(kind, html, u) if it['id'] not in seen]
         if not got:  # past the last page (some shops repeat page 1 there)
             break
         for it in got:
@@ -217,8 +223,8 @@ def check_shop(shop):
         else:
             page = fetch_rendered(url, key) if js else fetch(url)
             items = parse(kind, page, url)
-            if kind in PAGED and not js and items:
-                items += more_pages(page, url, kind, items)
+            if kind in PAGED and items:
+                items += more_pages(page, url, kind, items, key)
     except Exception as e:  # noqa: BLE001 - one bad shop must not stop the run
         return key, None, '%s: %s' % (type(e).__name__, e)
     if not items:
@@ -333,10 +339,9 @@ def main():
             summary.append('%s:%d(baseline)' % (key, len(items)))
             continue
         n_changes = 0
-        # pages 2..N were read from 2026-10-12 (all paged shops in a second step); their items were already for sale, so learn them quietly once
-        allpages = state.setdefault('_allpages2', {})
-        quiet = not allpages.get(key)
-        allpages[key] = True
+        # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
+        # (those items were already for sale, so they must not all arrive as new items)
+        quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
         for it in items:
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
