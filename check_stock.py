@@ -51,6 +51,7 @@ SHOPS = [
     ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
 ]
 NOT_DUNS = {'presentproject'}
+MAX_PAGES = 40  # list pages read per Cafe24 shop
 
 
 def log(msg):
@@ -185,6 +186,22 @@ def alert_block(label, it):
     ])
 
 
+def cafe24_more_pages(page, url, kind):
+    """Items on list pages 2..N (Pulev has 20+ pages; restocks of older items show up there)."""
+    m = re.search(r'xans-product-normalpaging(.*?)</div>', page, flags=re.S)
+    last = max([int(n) for n in re.findall(r'[?&]page=(\d+)', m.group(1))] or [1]) if m else 1
+    more, seen = [], set()
+    for n in range(2, min(last, MAX_PAGES) + 1):
+        u = url + ('&' if '?' in url else '?') + 'page=%d' % n
+        got = parse(kind, fetch(u), u)  # an error fails the whole shop, so nothing looks sold out by mistake
+        for it in got:
+            if it['id'] not in seen:
+                seen.add(it['id'])
+                it['page'] = n
+                more.append(it)
+    return more
+
+
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
@@ -193,6 +210,8 @@ def check_shop(shop):
         else:
             page = fetch_rendered(url, key) if js else fetch(url)
             items = parse(kind, page, url)
+            if kind in ('cafe24', 'littleluna') and items:
+                items += cafe24_more_pages(page, url, kind)
     except Exception as e:  # noqa: BLE001 - one bad shop must not stop the run
         return key, None, '%s: %s' % (type(e).__name__, e)
     if not items:
@@ -275,7 +294,7 @@ def scan_sizes(results, state):
             # page could not be read this time: keep what we knew so nothing is falsely alerted
             it['sizes'], it['sizes_out'] = old['sizes'], old.get('sizes_out', [])
 
-    with ThreadPoolExecutor(max_workers=6) as ex:
+    with ThreadPoolExecutor(max_workers=10) as ex:
         list(ex.map(one, jobs))
     return len(jobs)
 
@@ -307,11 +326,17 @@ def main():
             summary.append('%s:%d(baseline)' % (key, len(items)))
             continue
         n_changes = 0
+        # pages 2..N were read from 2026-10-12; their items were already for sale, so learn them quietly once
+        allpages = state.setdefault('_allpages', {})
+        quiet = not allpages.get(key)
+        allpages[key] = True
         for it in items:
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
-                if not it['soldout']:
+                if quiet and it.get('page', 1) > 1:
+                    pass
+                elif not it['soldout']:
                     changes.append(('신상', names[key], it))
                     n_changes += 1
             elif old.get('soldout') and not it['soldout']:
