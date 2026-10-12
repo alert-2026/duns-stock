@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -204,7 +205,11 @@ def more_pages(page, url, kind, first, key):
     for n in range(2, last + 1):
         u = url + ('&' if '?' in url else '?') + '%s=%d' % (param, n)
         # an error fails the whole shop, so nothing looks sold out by mistake
-        html = fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
+        try:
+            html = fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
+        except OSError:  # one slow page out of many is common; try it once more
+            time.sleep(3)
+            html = fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
         got = [it for it in parse(kind, html, u) if it['id'] not in seen]
         if not got:  # past the last page (some shops repeat page 1 there)
             break
