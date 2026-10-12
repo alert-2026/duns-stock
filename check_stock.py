@@ -373,11 +373,13 @@ def main():
         when = datetime.now(KST).strftime('%-m/%-d %H:%M')
         by_shop = {}
         shop_keys = {s[1]: s[0] for s in SHOPS}
+        shown = set()
         for label, shop, it in changes:
-            block = alert_block(label, it)
             # Coco & Jennie is watched on two category pages that share products: show each once
-            if block not in by_shop.setdefault(shop, []):
-                by_shop[shop].append(block)
+            if (shop, it['url']) in shown:
+                continue
+            shown.add((shop, it['url']))
+            by_shop.setdefault(shop, []).append(alert_block(label, it))
         # one Telegram message per shop (samee asked for this on 2026-10-10)
         sent = True
         for shop, blocks in by_shop.items():
