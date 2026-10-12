@@ -186,19 +186,26 @@ def alert_block(label, it):
     ])
 
 
-def cafe24_more_pages(page, url, kind):
-    """Items on list pages 2..N (Pulev has 20+ pages; restocks of older items show up there)."""
+PAGED = ('cafe24', 'littleluna', 'bbambam', 'coupleshot', 'imweb')
+
+
+def more_pages(page, url, kind, first):
+    """Items on list pages 2..N (Pulev has 22 pages; restocks of older items show up there)."""
+    last = MAX_PAGES
     m = re.search(r'xans-product-normalpaging(.*?)</div>', page, flags=re.S)
-    last = max([int(n) for n in re.findall(r'[?&]page=(\d+)', m.group(1))] or [1]) if m else 1
-    more, seen = [], set()
-    for n in range(2, min(last, MAX_PAGES) + 1):
+    if m:  # Cafe24 page links name the last page
+        last = min(MAX_PAGES, max([int(n) for n in re.findall(r'[?&]page=(\d+)', m.group(1))] or [1]))
+    more, seen = [], {it['id'] for it in first}
+    for n in range(2, last + 1):
         u = url + ('&' if '?' in url else '?') + 'page=%d' % n
-        got = parse(kind, fetch(u), u)  # an error fails the whole shop, so nothing looks sold out by mistake
+        # an error fails the whole shop, so nothing looks sold out by mistake
+        got = [it for it in parse(kind, fetch(u), u) if it['id'] not in seen]
+        if not got:  # past the last page (some shops repeat page 1 there)
+            break
         for it in got:
-            if it['id'] not in seen:
-                seen.add(it['id'])
-                it['page'] = n
-                more.append(it)
+            seen.add(it['id'])
+            it['page'] = n
+            more.append(it)
     return more
 
 
@@ -210,8 +217,8 @@ def check_shop(shop):
         else:
             page = fetch_rendered(url, key) if js else fetch(url)
             items = parse(kind, page, url)
-            if kind in ('cafe24', 'littleluna') and items:
-                items += cafe24_more_pages(page, url, kind)
+            if kind in PAGED and not js and items:
+                items += more_pages(page, url, kind, items)
     except Exception as e:  # noqa: BLE001 - one bad shop must not stop the run
         return key, None, '%s: %s' % (type(e).__name__, e)
     if not items:
@@ -326,8 +333,8 @@ def main():
             summary.append('%s:%d(baseline)' % (key, len(items)))
             continue
         n_changes = 0
-        # pages 2..N were read from 2026-10-12; their items were already for sale, so learn them quietly once
-        allpages = state.setdefault('_allpages', {})
+        # pages 2..N were read from 2026-10-12 (all paged shops in a second step); their items were already for sale, so learn them quietly once
+        allpages = state.setdefault('_allpages2', {})
         quiet = not allpages.get(key)
         allpages[key] = True
         for it in items:
