@@ -1,0 +1,41 @@
+# Checks a few shops about once a minute. GitHub's schedule only starts runs every
+# 10-15 minutes, so each run keeps checking in a loop for ~50 minutes instead.
+name: fast
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+concurrency:
+  group: fast
+  cancel-in-progress: false
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ONLY_SHOPS: presentproject
+      STATE_FILE: state-fast.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: state-fast.json
+          key: duns-fast-${{ github.run_id }}
+          restore-keys: duns-fast-
+      - name: Check every minute
+        run: |
+          end=$((SECONDS + 50*60))
+          while [ $SECONDS -lt $end ]; do
+            timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
+            sleep 50
+          done
+          grep -E 'SKIP|changes=' log.txt | tail -20 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=fast::/'; echo
+      - name: Save state
+        if: ${{ always() && hashFiles('state-fast.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: state-fast.json
+          key: duns-fast-${{ github.run_id }}

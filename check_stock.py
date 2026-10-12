@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 import parsers
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-STATE = os.path.join(HERE, 'state.json')
+STATE = os.environ.get('STATE_FILE') or os.path.join(HERE, 'state.json')
 TG_CONF = os.path.join(HERE, 'telegram.json')
 LOG = os.path.join(HERE, 'log.txt')
 KST = timezone(timedelta(hours=9))
@@ -281,6 +281,11 @@ def scan_sizes(results, state):
 
 
 def main():
+    global SHOPS
+    # ONLY_SHOPS / SKIP_SHOPS let the fast GitHub loop watch some shops every minute on their own
+    only = set(filter(None, os.environ.get('ONLY_SHOPS', '').split(',')))
+    skip = set(filter(None, os.environ.get('SKIP_SHOPS', '').split(',')))
+    SHOPS = [x for x in SHOPS if (not only or x[0] in only) and x[0] not in skip]
     state = load_json(STATE, {})
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(check_shop, SHOPS))
