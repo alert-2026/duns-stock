@@ -28,7 +28,7 @@ jobs:
       - name: Check every minute
         run: |
           # Gurm opens new items on 10/15: watch it every minute too until the end of that day (KST)
-          if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261015 ]; then export ONLY_SHOPS=presentproject,gurm; fi
+          if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261015 ]; then export ONLY_SHOPS=presentproject,gurm,gurmnew; fi
           end=$((SECONDS + 50*60))
           while [ $SECONDS -lt $end ]; do
             timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"

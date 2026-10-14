@@ -31,6 +31,8 @@ CHROME = os.environ.get('CHROME_PATH', '/Applications/Google Chrome.app/Contents
 # (key, display name, url, parser, needs headless Chrome)
 SHOPS = [
     ('gurm', '구름', 'https://gurm.kr/category/duns-sweden/70/', 'cafe24', False),
+    # Gurm sometimes lists new Duns items only under NEW at first (whole shop, so Duns items are picked out)
+    ('gurmnew', '구름', 'https://gurm.kr/category/new/458/', 'cafe24', False),
     ('cuddlybunny', '커들리버니', 'https://cuddlybunny.co.kr/category/duns-sweden/72', 'cafe24', False),
     ('pulev', '풀레브', 'https://pulev.co.kr/category/duns%EB%8D%98%EC%8A%A4/620/', 'cafe24', False),
     ('babybubble', '베이비버블', 'https://babybubble.co.kr/category/duns/179/', 'cafe24', False),
@@ -52,6 +54,7 @@ SHOPS = [
     ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
 ]
 NOT_DUNS = {'presentproject'}
+DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 MAX_PAGES = 40  # list pages read per Cafe24 shop
 
 
@@ -232,6 +235,8 @@ def check_shop(shop):
                 items += more_pages(page, url, kind, items, key)
     except Exception as e:  # noqa: BLE001 - one bad shop must not stop the run
         return key, None, '%s: %s' % (type(e).__name__, e)
+    if key in DUNS_ONLY:
+        items = [it for it in items if 'DUNS' in it['name'].upper() or '던스' in it['name']]
     if not items:
         return key, None, 'parsed 0 products (%d bytes)' % len(page)
     return key, items, None
@@ -376,9 +381,10 @@ def main():
         shown = set()
         for label, shop, it in changes:
             # Coco & Jennie is watched on two category pages that share products: show each once
-            if (shop, it['url']) in shown:
+            # (Gurm's Duns and NEW pages also share products, under different links)
+            if (shop, it['id']) in shown:
                 continue
-            shown.add((shop, it['url']))
+            shown.add((shop, it['id']))
             by_shop.setdefault(shop, []).append(alert_block(label, it))
         # one Telegram message per shop (samee asked for this on 2026-10-10)
         sent = True
