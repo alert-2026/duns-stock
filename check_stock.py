@@ -366,15 +366,18 @@ def main():
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
         quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
-        for it in items:
-            old = known.get(it['id'])
-            # only things that can be bought now are alerted (samee buys restocks / cancellations)
-            if not it['soldout'] and (old is None or old.get('soldout')) and not (quiet and it.get('page', 1) > 1):
-                # some shops list an item as on sale while every size is sold out: that can't be bought
-                found = get_sizes(it)
+        # some shops list an item as on sale while every size is sold out: that can't be bought,
+        # so items about to be alerted get their sizes read first (side by side, at most 40 per shop)
+        maybe = [it for it in items if not it['soldout'] and not (quiet and it.get('page', 1) > 1)
+                 and (known.get(it['id']) is None or known[it['id']].get('soldout'))]
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for it, found in zip(maybe[:40], ex.map(get_sizes, maybe[:40])):
                 if found:
                     it['sizes'], it['sizes_out'] = found
                     it['soldout'] = not found[0]
+        for it in items:
+            old = known.get(it['id'])
+            # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
                 if quiet and it.get('page', 1) > 1:
                     pass
@@ -398,6 +401,12 @@ def main():
         when = datetime.now(KST).strftime('%-m/%-d %H:%M')
         by_shop = {}
         shop_keys = {s[1]: s[0] for s in SHOPS}
+        # read sizes for the alerts side by side (one page each), so many alerts at once can't stall the check
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            need = [it for _, _, it in changes if 'sizes' not in it]
+            for it, found in zip(need, ex.map(get_sizes, need)):
+                if found:
+                    it['sizes'], it['sizes_out'] = found
         shown = set()
         for label, shop, it in changes:
             # Coco & Jennie is watched on two category pages that share products: show each once
