@@ -207,14 +207,26 @@ def more_pages(page, url, kind, first, key):
         m = re.search(r'class="paginationNumbers"(.*?)</div></div>', page, flags=re.S)
         last = min(MAX_PAGES, max([int(n) for n in re.findall(r'page="(\d+)"', m.group(1))] or [1]) if m else 1)
     more, seen = [], {it['id'] for it in first}
-    for n in range(2, last + 1):
-        u = url + ('&' if '?' in url else '?') + '%s=%d' % (param, n)
+
+    def page_url(n):
+        return url + ('&' if '?' in url else '?') + '%s=%d' % (param, n)
+
+    def get(u):
         # an error fails the whole shop, so nothing looks sold out by mistake
         try:
-            html = fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
+            return fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
         except OSError:  # one slow page out of many is common; try it once more
             time.sleep(3)
-            html = fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
+            return fetch_rendered(u, key) if kind == 'sixshop' else fetch(u)
+
+    pages = {}
+    if m and kind != 'sixshop' and last > 2:
+        # the last page is known, so read the pages side by side (Gurm's ~40 pages in seconds, not ~40s)
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            pages = dict(zip(range(2, last + 1), ex.map(get, [page_url(n) for n in range(2, last + 1)])))
+    for n in range(2, last + 1):
+        u = page_url(n)
+        html = pages[n] if n in pages else get(u)
         got = [it for it in parse(kind, html, u) if it['id'] not in seen]
         if not got:  # past the last page (some shops repeat page 1 there)
             break

@@ -1,4 +1,4 @@
-# Checks a few shops about once a minute. GitHub's schedule only starts runs every
+# Checks a few shops about every 30 seconds. GitHub's schedule only starts runs every
 # 10-15 minutes, so each run keeps checking in a loop for ~50 minutes instead.
 name: fast
 on:
@@ -31,8 +31,11 @@ jobs:
           if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261015 ]; then export ONLY_SHOPS=presentproject,gurm,gurmnew; fi
           end=$((SECONDS + 50*60))
           while [ $SECONDS -lt $end ]; do
+            start=$SECONDS
             timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
-            sleep 50
+            # start a check every 30 seconds (samee asked on 10/15); never less than 5s apart
+            wait=$((30 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
+            sleep $wait
           done
           grep -E 'SKIP|changes=' log.txt | tail -20 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=fast::/'; echo
       - name: Save state
