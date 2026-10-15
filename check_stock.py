@@ -371,10 +371,14 @@ def main():
         maybe = [it for it in items if not it['soldout'] and not (quiet and it.get('page', 1) > 1)
                  and (known.get(it['id']) is None or known[it['id']].get('soldout'))]
         with ThreadPoolExecutor(max_workers=8) as ex:
-            for it, found in zip(maybe[:40], ex.map(get_sizes, maybe[:40])):
-                if found:
-                    it['sizes'], it['sizes_out'] = found
-                    it['soldout'] = not found[0]
+            found_all = list(ex.map(get_sizes, maybe[:40])) + [None] * len(maybe[40:])
+        for it, found in zip(maybe, found_all):
+            if found:
+                it['sizes'], it['sizes_out'] = found
+                it['soldout'] = it['size_soldout'] = not found[0]
+            elif (known.get(it['id']) or {}).get('size_soldout'):
+                # its sizes were all sold out last time and couldn't be read now: don't call it a restock
+                it['soldout'] = it['size_soldout'] = True
         for it in items:
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
