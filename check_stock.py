@@ -87,6 +87,8 @@ def decode(raw, content_type=''):
 
 
 def fetch(url):
+    # some product links contain Korean letters, which urllib can't send as they are
+    url = urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%~")
     req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': '*/*', 'Accept-Language': 'ko-KR,ko;q=0.9'})
     with urllib.request.urlopen(req, timeout=30) as r:
         return decode(r.read(), r.headers.get('Content-Type', ''))
@@ -355,6 +357,12 @@ def main():
         for it in items:
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
+            if not it['soldout'] and (old is None or old.get('soldout')) and not (quiet and it.get('page', 1) > 1):
+                # some shops list an item as on sale while every size is sold out: that can't be bought
+                found = get_sizes(it)
+                if found:
+                    it['sizes'], it['sizes_out'] = found
+                    it['soldout'] = not found[0]
             if old is None:
                 if quiet and it.get('page', 1) > 1:
                     pass
