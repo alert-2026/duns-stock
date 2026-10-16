@@ -192,10 +192,10 @@ def alert_block(label, it):
     new = [x for x in it.get('new_sizes', []) if x != '전체'] or (avail if label in ('재입고', '신상') else [])
     had = [x for x in avail if x not in new]
     lines = ['[%s] %s' % (label, it['name']), '가격: ' + it['price'],
-             '❤️ 새로 들어옴: ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
+             '❤️ 새로 들어옴 : ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
     if had:  # sizes that were already on sale before this restock
-        lines.append('✅ 원래 있던 사이즈: ' + ', '.join(had))
-    lines.append('❌ 품절 사이즈: ' + ', '.join(out))
+        lines.append('✅ 가능 사이즈 : ' + ', '.join(had))
+    lines.append('❌ 품절 : ' + ', '.join(out))
     return '\n'.join(lines + [it['url']])
 
 
