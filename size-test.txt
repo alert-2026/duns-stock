@@ -1,0 +1,22 @@
+gurm               759    8.1s 
+gurmnew            266    6.5s 
+cuddlybunny        150    4.2s 
+pulev              254    3.2s 
+babybubble          58    4.0s 
+bbambam            104   13.9s 
+checkanddot        236    4.1s 
+dearmykiz           36    2.1s 
+littleluna         142    5.6s 
+coupleshot        1049   21.5s 
+rulii              269    8.8s 
+mimilemonde        168    4.0s 
+foretforet        1050   16.2s 
+coconjennie        306   13.4s 
+coconjennie2        53    5.0s 
+blingandon          23    5.5s 
+official           650    1.6s 
+mnkl               410   10.2s 
+happylittleattic   396    0.8s 
+presentproject      19    2.5s 
+total 24.7s
+second pass 21.6s
