@@ -508,6 +508,11 @@ def main():
             known[it['id']] = {k: v for k, v in dict(it, last_seen=now).items() if k != 'new_sizes'}
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
 
+    # ALERT_LABELS: the 5-minute size loop only sends [사이즈 재입고]; the 1-minute loop sends the rest
+    labels = set(filter(None, os.environ.get('ALERT_LABELS', '').split(',')))
+    if labels:
+        changes = [c for c in changes if c[0] in labels]
+
     # Gurm's Duns and NEW lists are cached separately, so one restock can show up a run apart on each:
     # don't send the same alert for the same product again within 5 minutes
     recent = {k: t for k, t in state.get('_recent', {}).items() if time.time() - t < 300}

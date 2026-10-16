@@ -1,5 +1,6 @@
-# Checks Present Project about every 30 seconds (and Gurm too until 11/16). GitHub's schedule only starts runs every
-# 10-15 minutes, so each run keeps checking in a loop for ~50 minutes instead.
+# Checks every shop's lists about every minute (samee asked on 10/16), and Present Project and Gurm (until 11/16) about
+# every 30 seconds. GitHub's schedule only starts runs every 20-30 minutes, so each run keeps checking in a loop for
+# ~50 minutes instead. Single sizes coming back are caught by check.yml's 5-minute size loop (Gurm's here).
 name: fast
 on:
   schedule:
@@ -15,8 +16,8 @@ jobs:
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      ONLY_SHOPS: presentproject
       STATE_FILE: state-fast2.json
+      CHROME_PATH: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
       - name: Restore state
@@ -27,15 +28,18 @@ jobs:
           restore-keys: duns-fast2-
       - name: Check every minute
         run: |
-          end=$((SECONDS + 50*60))
+          end=$((SECONDS + 50*60)); n=0
           while [ $SECONDS -lt $end ]; do
             start=$SECONDS
             # pick up code changes (such as a new alert layout) without waiting for the next run
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
-            # samee asked on 10/16 to watch Gurm every 30 seconds for a month: until the end of 11/16 (KST)
+            # every other check reads all shops (about 25s), so each shop is seen about every minute;
+            # the checks in between read Present Project and, until the end of 11/16 (KST, samee asked on 10/16), Gurm
+            n=$((n + 1))
             ONLY_SHOPS=presentproject
             ROTATE_SIZE_SHOPS=
             if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261116 ]; then ONLY_SHOPS=presentproject,gurm,gurmnew; ROTATE_SIZE_SHOPS=gurm,gurmnew; fi
+            [ $((n % 2)) -eq 1 ] && ONLY_SHOPS=
             ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
             # start a check every 30 seconds (samee asked on 10/15); never less than 5s apart
             wait=$((30 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
