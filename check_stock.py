@@ -190,6 +190,8 @@ def alert_block(label, it):
     avail, out = found or ([], [])
     # a whole-item restock or a new item: every size on sale now has just come in
     new = it.get('new_sizes') or (avail if label in ('재입고', '신상') else [])
+    if new == ['전체']:  # the laptop marks a whole-item restock this way; samee wants the sizes listed
+        new = avail
     return '\n'.join([
         '[%s] %s' % (label, it['name']),
         '가격: ' + it['price'],
