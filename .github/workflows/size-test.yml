@@ -14,7 +14,7 @@ jobs:
       CHROME_PATH: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
-      - run: python3 check_stock.py --size-test || true
+      - run: python3 diag.py > log.txt 2>&1 || true
       - name: Publish result
         run: |
           cp log.txt /tmp/size-test.txt; cp -r pages /tmp/pages || true
