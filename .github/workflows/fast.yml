@@ -30,6 +30,8 @@ jobs:
           end=$((SECONDS + 50*60))
           while [ $SECONDS -lt $end ]; do
             start=$SECONDS
+            # pick up code changes (such as a new alert layout) without waiting for the next run
+            git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
             # samee asked on 10/16 to watch Gurm every 30 seconds for a month: until the end of 11/16 (KST)
             ONLY_SHOPS=presentproject
             ROTATE_SIZE_SHOPS=
