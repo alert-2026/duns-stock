@@ -94,6 +94,13 @@ def fetch(url):
         return decode(r.read(), r.headers.get('Content-Type', ''))
 
 
+def fetch_or_none(url):
+    try:
+        return fetch(url)
+    except Exception:  # noqa: BLE001 - the caller falls back to what it knew
+        return None
+
+
 def fetch_curl(url):
     """Shopify answers Python's urllib with 429 but serves curl, so use curl there."""
     out = subprocess.run(['curl', '-sS', '--fail', '--max-time', '30', '-A', UA, url],
@@ -349,6 +356,7 @@ def main():
         log('size scan: %d product pages' % scan_sizes(results, state))
 
     names = {s[0]: s[1] for s in SHOPS}
+    kinds = {s[0]: s[3] for s in SHOPS}
     changes = []
     summary = []
     for key, items, err in results:
@@ -368,6 +376,21 @@ def main():
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
         quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
+        if kinds[key] in ('cafe24', 'littleluna'):
+            # Cafe24 caches each list page on its own and the order shifts, so the same item can look sold out
+            # on one page and on sale on another: when the list disagrees with what we knew, ask its own page
+            flips = [it for it in items if known.get(it['id']) and bool(known[it['id']].get('soldout')) != it['soldout']]
+            with ThreadPoolExecutor(max_workers=8) as ex:
+                pages = list(ex.map(fetch_or_none, [it['url'] for it in flips[:40]])) + [None] * len(flips[40:])
+            for it, page in zip(flips, pages):
+                m = re.search(r"is_soldout_icon\s*=\s*'([TF])'", page or '')
+                if not m:  # can't tell: keep what we knew
+                    it['soldout'] = bool(known[it['id']].get('soldout'))
+                    continue
+                it['soldout'] = m.group(1) == 'T'
+                found = parsers.parse_sizes(page)
+                if found:
+                    it['sizes'], it['sizes_out'] = found
         # some shops list an item as on sale while every size is sold out: that can't be bought,
         # so items about to be alerted get their sizes read first (side by side, at most 40 per shop)
         maybe = [it for it in items if not it['soldout'] and not (quiet and it.get('page', 1) > 1)
