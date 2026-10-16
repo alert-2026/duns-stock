@@ -41,6 +41,8 @@ jobs:
         run: |
           # a stuck shop page must never hang the job until GitHub cancels it (that sends a failure email);
           # an unfinished run saves nothing, so the next run simply checks again
+          # Gurm is checked every 30s by fast.yml until 11/16: here it only adds [사이즈 재입고], so nothing comes twice
+          if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261116 ]; then export SIZE_ONLY_SHOPS=gurm,gurmnew; fi
           timeout 420 python3 check_stock.py || echo "run stopped early (exit $?)"
           # one annotation with the run summary so it can be read without opening the logs
           grep -E 'SKIP|run:|changes=' log.txt | tail -20 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=duns-stock::/'; echo

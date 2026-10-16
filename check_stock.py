@@ -363,6 +363,8 @@ def main():
             summary.append('%s:%d(baseline)' % (key, len(items)))
             continue
         n_changes = 0
+        # shops the 30-second loop already watches: this run only adds single-size restocks (no duplicates)
+        size_only = key in set(filter(None, os.environ.get('SIZE_ONLY_SHOPS', '').split(',')))
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
         quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
@@ -383,15 +385,15 @@ def main():
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
-                if quiet and it.get('page', 1) > 1:
+                if (quiet and it.get('page', 1) > 1) or size_only:
                     pass
                 elif not it['soldout']:
                     changes.append(('신상', names[key], it))
                     n_changes += 1
-            elif old.get('soldout') and not it['soldout']:
+            elif old.get('soldout') and not it['soldout'] and not size_only:
                 changes.append(('재입고', names[key], it))
                 n_changes += 1
-            elif 'sizes' in old and set(it.get('sizes', [])) - set(old['sizes']):
+            elif 'sizes' in old and not (size_only and old.get('soldout')) and set(it.get('sizes', [])) - set(old['sizes']):
                 # a size came back on an item that was already partly on sale
                 it['new_sizes'] = [x for x in it['sizes'] if x not in old['sizes']]
                 changes.append(('사이즈 재입고', names[key], it))
