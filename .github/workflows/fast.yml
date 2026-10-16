@@ -1,4 +1,4 @@
-# Checks Present Project about every 30 seconds (and Gurm every minute until 11/16). GitHub's schedule only starts runs every
+# Checks Present Project about every 30 seconds (and Gurm too until 11/16). GitHub's schedule only starts runs every
 # 10-15 minutes, so each run keeps checking in a loop for ~50 minutes instead.
 name: fast
 on:
@@ -27,12 +27,12 @@ jobs:
           restore-keys: duns-fast2-
       - name: Check every minute
         run: |
-          end=$((SECONDS + 50*60)); n=0
+          end=$((SECONDS + 50*60))
           while [ $SECONDS -lt $end ]; do
-            start=$SECONDS; n=$((n + 1))
-            # samee asked on 10/16 to watch Gurm every minute for a month: every other check, until 11/16 (KST)
+            start=$SECONDS
+            # samee asked on 10/16 to watch Gurm every 30 seconds for a month: until the end of 11/16 (KST)
             ONLY_SHOPS=presentproject
-            if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261116 ] && [ $((n % 2)) -eq 1 ]; then ONLY_SHOPS=presentproject,gurm,gurmnew; fi
+            if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261116 ]; then ONLY_SHOPS=presentproject,gurm,gurmnew; fi
             ONLY_SHOPS=$ONLY_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
             # start a check every 30 seconds (samee asked on 10/15); never less than 5s apart
             wait=$((30 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
