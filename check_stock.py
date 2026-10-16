@@ -461,6 +461,21 @@ def main():
             known[it['id']] = {k: v for k, v in dict(it, last_seen=now).items() if k != 'new_sizes'}
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
 
+    # Gurm's Duns and NEW lists are cached separately, so one restock can show up a run apart on each:
+    # don't send the same alert for the same product again within 5 minutes
+    recent = {k: t for k, t in state.get('_recent', {}).items() if time.time() - t < 300}
+    fresh = []
+    for c in changes:
+        label, shop, it = c
+        k = '%s|%s|%s|%s' % (label, shop, it['id'], ','.join(it.get('new_sizes', [])))
+        if k in recent:
+            log('  already alerted: %s %s %s' % (label, shop, it['name'][:40]))
+            continue
+        recent[k] = time.time()
+        fresh.append(c)
+    changes = fresh
+    state['_recent'] = recent
+
     if changes:
         order = {'재입고': 0, '사이즈 재입고': 0, '신상': 1, '품절': 2}
         changes.sort(key=lambda c: order[c[0]])
