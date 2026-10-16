@@ -185,21 +185,18 @@ def get_sizes(it):
 
 
 def alert_block(label, it):
-    """Same lines for every shop (layout samee approved 2026-10-16); unknown values stay blank."""
+    """Same lines for every shop (layout samee approved 2026-10-16)."""
     found = get_sizes(it)
     avail, out = found or ([], [])
     # a whole-item restock or a new item: every size on sale now has just come in
-    new = it.get('new_sizes') or (avail if label in ('재입고', '신상') else [])
-    if new == ['전체']:  # the laptop marks a whole-item restock this way; samee wants the sizes listed
-        new = avail
-    return '\n'.join([
-        '[%s] %s' % (label, it['name']),
-        '가격: ' + it['price'],
-        '🆕 새로 들어옴: ' + ', '.join(new),
-        '✅ 사이즈: ' + ', '.join(avail),
-        '❌ 품절 사이즈: ' + ', '.join(out),
-        it['url'],
-    ])
+    new = [x for x in it.get('new_sizes', []) if x != '전체'] or (avail if label in ('재입고', '신상') else [])
+    had = [x for x in avail if x not in new]
+    lines = ['[%s] %s' % (label, it['name']), '가격: ' + it['price'],
+             '❤️ 새로 들어옴: ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
+    if had:  # sizes that were already on sale before this restock
+        lines.append('✅ 원래 있던 사이즈: ' + ', '.join(had))
+    lines.append('❌ 품절 사이즈: ' + ', '.join(out))
+    return '\n'.join(lines + [it['url']])
 
 
 PAGED = ('cafe24', 'littleluna', 'bbambam', 'coupleshot', 'imweb', 'sixshop')
