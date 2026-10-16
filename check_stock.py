@@ -376,6 +376,9 @@ def scan_sizes(results, state):
     return len(jobs)
 
 
+CURRENT_SEASON = r'26AU|FALL26|AW26'
+
+
 def rotate_sizes(results, state, shops, batch=60):
     """For the 30-second loop: re-read the sizes of a few on-sale items per check, oldest-read first,
     and carry the last known sizes for the rest, so a single size coming back (a cancellation) is caught
@@ -394,7 +397,12 @@ def rotate_sizes(results, state, shops, batch=60):
             if not it['soldout']:
                 jobs.append(it)
     jobs.sort(key=lambda it: it.get('size_checked', ''))
-    jobs = jobs[:batch]
+    # this season's items sell out and come back most often: two thirds of each batch goes to them
+    season = [it for it in jobs if re.search(CURRENT_SEASON, it['name'], flags=re.I)]
+    picked = season[:batch * 2 // 3]
+    chosen = {id(it) for it in picked}
+    rest = [it for it in jobs if id(it) not in chosen]
+    jobs = picked + rest[:batch - len(picked)]
 
     def one(it):
         try:
