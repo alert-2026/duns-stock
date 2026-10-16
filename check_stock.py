@@ -185,16 +185,17 @@ def get_sizes(it):
 
 
 def alert_block(label, it):
-    """Same lines for every shop (layout samee approved 2026-10-11); unknown values stay blank."""
-    avail, out = get_sizes(it) or ([], [])
-    sizes = ', '.join(avail)
-    if it.get('new_sizes'):
-        sizes += ' (새로 들어옴: %s)' % ', '.join(it['new_sizes'])
+    """Same lines for every shop (layout samee approved 2026-10-16); unknown values stay blank."""
+    found = get_sizes(it)
+    avail, out = found or ([], [])
+    # a whole-item restock or a new item: every size on sale now has just come in
+    new = it.get('new_sizes') or (avail if label in ('재입고', '신상') else [])
     return '\n'.join([
         '[%s] %s' % (label, it['name']),
         '가격: ' + it['price'],
-        '사이즈: ' + sizes,
-        '품절 사이즈: ' + ', '.join(out),
+        '🆕 새로 들어옴: ' + ', '.join(new),
+        '✅ 사이즈: ' + ', '.join(avail),
+        '❌ 품절 사이즈: ' + ', '.join(out),
         it['url'],
     ])
 
