@@ -384,6 +384,12 @@ def main():
     skip = set(filter(None, os.environ.get('SKIP_SHOPS', '').split(',')))
     SHOPS = [x for x in SHOPS if (not only or x[0] in only) and x[0] not in skip]
     state = load_json(STATE, {})
+    # sizes saved before 10/16 kept Cafe24's escaped slash (74\/80); fix them so they don't look like new sizes
+    for shop in state.values():
+        for rec in shop.values() if isinstance(shop, dict) else []:
+            for f in ('sizes', 'sizes_out'):
+                if isinstance(rec, dict) and isinstance(rec.get(f), list):
+                    rec[f] = [x.replace('\\/', '/') for x in rec[f]]
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(check_shop, SHOPS))
     if os.environ.get('SIZE_SCAN') == '1':

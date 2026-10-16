@@ -214,7 +214,7 @@ def parse_shopify(data, base):
 
 # ---------------------------------------------------------------- product sizes
 def _option_label(text):
-    t = clean(text)
+    t = clean(text).replace('\\/', '/')  # Cafe24 sometimes leaves JSON's escaped slash: 74\/80
     t = re.sub(r'\s*\[?\(?\s*(품절|sold\s*out)\s*\)?\]?\s*', ' ', t, flags=re.I).strip()
     return re.sub(r'\s*\(?[+-]\s*[\d,]+\s*원?\)?$', '', t).strip()
 
