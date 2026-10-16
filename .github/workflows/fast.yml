@@ -38,7 +38,7 @@ jobs:
             wait=$((30 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
             sleep $wait
           done
-          grep -E 'SKIP|changes=' log.txt | tail -20 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=fast::/'; echo
+          grep -E 'SKIP|changes=|^[0-9-]+ [0-9:]+   ' log.txt | tail -60 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=fast::/'; echo
       - name: Save state
         if: ${{ always() && hashFiles('state-fast2.json') != '' }}
         uses: actions/cache/save@v4

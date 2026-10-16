@@ -427,6 +427,8 @@ def main():
             head = ('🔔 %s (%s, KST)' if shop_keys[shop] in NOT_DUNS else '🔔 %s · 던스스웨덴 (%s, KST)') % (shop, when)
             sent = telegram_send('\n\n'.join([head] + blocks)) and sent
         log('changes=%d sent=%s' % (len(changes), sent))
+        for label, shop, it in changes:
+            log('  %s %s %s %s' % (label, shop, it['id'], it['name'][:40]))
         if not sent:
             # keep the previous state so the same changes are retried next run
             log('state not saved because the alert was not delivered')
