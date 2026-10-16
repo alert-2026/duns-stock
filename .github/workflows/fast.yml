@@ -32,8 +32,9 @@ jobs:
             start=$SECONDS
             # samee asked on 10/16 to watch Gurm every 30 seconds for a month: until the end of 11/16 (KST)
             ONLY_SHOPS=presentproject
-            if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261116 ]; then ONLY_SHOPS=presentproject,gurm,gurmnew; fi
-            ONLY_SHOPS=$ONLY_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
+            ROTATE_SIZE_SHOPS=
+            if [ "$(TZ=Asia/Seoul date +%Y%m%d)" -le 20261116 ]; then ONLY_SHOPS=presentproject,gurm,gurmnew; ROTATE_SIZE_SHOPS=gurm,gurmnew; fi
+            ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
             # start a check every 30 seconds (samee asked on 10/15); never less than 5s apart
             wait=$((30 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
             sleep $wait

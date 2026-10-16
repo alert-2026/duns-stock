@@ -343,6 +343,40 @@ def scan_sizes(results, state):
     return len(jobs)
 
 
+def rotate_sizes(results, state, shops, batch=60):
+    """For the 30-second loop: re-read the sizes of a few on-sale items per check, oldest-read first,
+    and carry the last known sizes for the rest, so a single size coming back (a cancellation) is caught
+    within minutes without opening hundreds of pages every check."""
+    now = datetime.now(KST).isoformat(timespec='seconds')
+    jobs = []
+    for key, items, err in results:
+        if err or key not in shops:
+            continue
+        known = state.get(key) or {}
+        for it in items:
+            old = known.get(it['id'], {})
+            if 'sizes' in old and 'sizes' not in it:
+                it['sizes'], it['sizes_out'] = old['sizes'], old.get('sizes_out', [])
+                it['size_checked'] = old.get('size_checked', '')
+            if not it['soldout']:
+                jobs.append(it)
+    jobs.sort(key=lambda it: it.get('size_checked', ''))
+    jobs = jobs[:batch]
+
+    def one(it):
+        try:
+            found = parsers.parse_sizes(fetch(it['url']))
+        except Exception:  # noqa: BLE001 - keep the carried sizes
+            found = None
+        if found:
+            it['sizes'], it['sizes_out'] = found
+        it['size_checked'] = now
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(one, jobs))
+    return len(jobs)
+
+
 def main():
     global SHOPS
     # ONLY_SHOPS / SKIP_SHOPS let the fast GitHub loop watch some shops every minute on their own
@@ -354,6 +388,9 @@ def main():
         results = list(ex.map(check_shop, SHOPS))
     if os.environ.get('SIZE_SCAN') == '1':
         log('size scan: %d product pages' % scan_sizes(results, state))
+    rotate = set(filter(None, os.environ.get('ROTATE_SIZE_SHOPS', '').split(',')))
+    if rotate:
+        log('rotating size scan: %d product pages' % rotate_sizes(results, state, rotate))
 
     names = {s[0]: s[1] for s in SHOPS}
     kinds = {s[0]: s[3] for s in SHOPS}
@@ -371,8 +408,8 @@ def main():
             summary.append('%s:%d(baseline)' % (key, len(items)))
             continue
         n_changes = 0
-        # shops the 30-second loop already watches: this run only adds single-size restocks (no duplicates)
-        size_only = key in set(filter(None, os.environ.get('SIZE_ONLY_SHOPS', '').split(',')))
+        # shops the 30-second loop already watches (sizes included): this run only keeps its record up to date
+        learn_only = key in set(filter(None, os.environ.get('LEARN_ONLY_SHOPS', '').split(',')))
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
         quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
@@ -408,15 +445,15 @@ def main():
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
-                if (quiet and it.get('page', 1) > 1) or size_only:
+                if (quiet and it.get('page', 1) > 1) or learn_only:
                     pass
                 elif not it['soldout']:
                     changes.append(('신상', names[key], it))
                     n_changes += 1
-            elif old.get('soldout') and not it['soldout'] and not size_only:
+            elif old.get('soldout') and not it['soldout'] and not learn_only:
                 changes.append(('재입고', names[key], it))
                 n_changes += 1
-            elif 'sizes' in old and not (size_only and old.get('soldout')) and set(it.get('sizes', [])) - set(old['sizes']):
+            elif 'sizes' in old and not learn_only and set(it.get('sizes', [])) - set(old['sizes']):
                 # a size came back on an item that was already partly on sale
                 it['new_sizes'] = [x for x in it['sizes'] if x not in old['sizes']]
                 changes.append(('사이즈 재입고', names[key], it))
