@@ -193,9 +193,9 @@ def alert_block(label, it):
     had = [x for x in avail if x not in new]
     lines = ['[%s] %s' % (label, it['name']), '가격: ' + it['price'],
              '❤️ 새로 들어옴 : ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
-    if had:  # sizes that were already on sale before this restock
-        lines.append('✅ 가능 사이즈 : ' + ', '.join(had))
-    lines.append('❌ 품절 : ' + ', '.join(out))
+    # every message has the same lines; '-' when a line has nothing (✅ for a whole restock or a new item)
+    lines.append('✅ 가능 사이즈 : ' + (', '.join(had) or '-'))
+    lines.append('❌ 품절 : ' + (', '.join(out) or '-'))
     return '\n'.join(lines + [it['url']])
 
 
