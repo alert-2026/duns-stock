@@ -244,11 +244,44 @@ def more_pages(page, url, kind, first, key):
     return more
 
 
+FORET_LIST = ('https://www.foretforet.com/shop/product_list.action.html?action_mode=get_list&page=%d'
+              '&sep1=021&xcode=021&mcode=001&scode=090&type=Y&sort=manual&soldout_sort=Y&is_list_buy=0')
+
+
+def foret_items(url):
+    """All Foret Foret Duns items: the category page shows 12, the rest come from this JSON list (88 pages)."""
+    def get(n):
+        for attempt in (1, 2):
+            try:
+                return json.loads(fetch(FORET_LIST % n))
+            except (OSError, ValueError):
+                if attempt == 2:
+                    raise
+                time.sleep(3)
+    first = get(1)
+    pages = int(first.get('total_page_cnt') or 1)
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        data = [first] + list(ex.map(get, range(2, min(pages, 120) + 1)))
+    items, seen = [], set()
+    for n, d in enumerate(data, 1):
+        for it in parsers.parse_foret(d.get('html', ''), url):
+            if it['id'] not in seen:
+                seen.add(it['id'])
+                it['page'] = n
+                items.append(it)
+    # a partial read would make the missing items look new later, so fail the shop instead
+    if len(items) < 0.9 * int(first.get('total') or 0):
+        raise ValueError('read %d of %s items' % (len(items), first.get('total')))
+    return items
+
+
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
         if kind == 'shopify':
             items, page = shopify_items(url), ''
+        elif kind == 'foret':
+            items, page = foret_items(url), ''
         else:
             page = fetch_rendered(url, key) if js else fetch(url)
             items = parse(kind, page, url)
