@@ -1,4 +1,4 @@
-# Checks every shop's lists about every minute (samee asked on 10/16), and Present Project, Mini Couple Shot and Gurm about
+# Checks every shop's lists about every minute (samee asked on 10/16), and Present Project, Mini Couple Shot, Foret Foret and Gurm about
 # every 30 seconds. GitHub's schedule only starts runs every 20-30 minutes, so each run keeps checking in a loop for
 # ~50 minutes instead. Single sizes coming back are caught by check.yml's 5-minute size loop (Gurm's here).
 name: fast
@@ -34,10 +34,10 @@ jobs:
             # pick up code changes (such as a new alert layout) without waiting for the next run
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
             # every other check reads all shops (about 25s), so each shop is seen about every minute;
-            # the checks in between read Present Project, Mini Couple Shot and Gurm
+            # the checks in between read Present Project, Mini Couple Shot, Foret Foret and Gurm
             n=$((n + 1))
-            # Mini Couple Shot since 10/17; Gurm with no end date since 10/17 (samee asked)
-            ONLY_SHOPS=presentproject,coupleshot,gurm,gurmnew
+            # Mini Couple Shot and Foret Foret since 10/17; Gurm with no end date since 10/17 (samee asked)
+            ONLY_SHOPS=presentproject,coupleshot,foretforet,gurm,gurmnew
             ROTATE_SIZE_SHOPS=gurm,gurmnew
             [ $((n % 2)) -eq 1 ] && ONLY_SHOPS=
             ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
