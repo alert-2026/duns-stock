@@ -1,6 +1,6 @@
-# Checks every shop's lists about every minute (samee asked on 10/16), and Present Project, Mini Couple Shot, Foret Foret and Gurm about
-# every 30 seconds. GitHub's schedule only starts runs every 20-30 minutes, so each run keeps checking in a loop for
-# ~50 minutes instead. Single sizes coming back are caught by check.yml's 5-minute size loop (Gurm's here).
+# Checks every shop's lists about every 35 seconds (samee asked on 10/17). GitHub's schedule only starts runs every
+# 20-30 minutes, so each run keeps checking in a loop for ~50 minutes instead. Single sizes coming back are caught by
+# check.yml's 5-minute size loop (Gurm's here, by re-reading 60 product pages per check).
 name: fast
 on:
   schedule:
@@ -28,21 +28,17 @@ jobs:
           restore-keys: duns-fast2-
       - name: Check every minute
         run: |
-          end=$((SECONDS + 50*60)); n=0
+          end=$((SECONDS + 50*60))
           while [ $SECONDS -lt $end ]; do
             start=$SECONDS
             # pick up code changes (such as a new alert layout) without waiting for the next run
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
-            # every other check reads all shops (about 25s), so each shop is seen about every minute;
-            # the checks in between read Present Project, Mini Couple Shot, Foret Foret and Gurm
-            n=$((n + 1))
-            # Mini Couple Shot and Foret Foret since 10/17; Gurm with no end date since 10/17 (samee asked)
-            ONLY_SHOPS=presentproject,coupleshot,foretforet,gurm,gurmnew
+            # every check reads all shops (samee asked on 10/17 for every shop at about 35 seconds)
+            ONLY_SHOPS=
             ROTATE_SIZE_SHOPS=gurm,gurmnew
-            [ $((n % 2)) -eq 1 ] && ONLY_SHOPS=
             ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
-            # start a check every 30 seconds (samee asked on 10/15); never less than 5s apart
-            wait=$((30 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
+            # start a check every 35 seconds; never less than 5s apart
+            wait=$((35 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
             sleep $wait
           done
           grep -E 'SKIP|changes=|^[0-9-]+ [0-9:]+   ' log.txt | tail -60 | awk '{printf "%s%%0A", $0}' | sed 's/^/::notice title=fast::/'; echo

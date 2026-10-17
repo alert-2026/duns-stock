@@ -431,7 +431,8 @@ def main():
             for f in ('sizes', 'sizes_out'):
                 if isinstance(rec, dict) and isinstance(rec.get(f), list):
                     rec[f] = [x.replace('\\/', '/') for x in rec[f]]
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    # every shop at once, so a check takes as long as the slowest shop (about 20s), not the sum
+    with ThreadPoolExecutor(max_workers=max(1, len(SHOPS))) as ex:
         results = list(ex.map(check_shop, SHOPS))
     if os.environ.get('SIZE_SCAN') == '1':
         log('size scan: %d product pages' % scan_sizes(results, state))
