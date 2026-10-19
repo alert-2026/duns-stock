@@ -202,10 +202,13 @@ def alert_block(label, it):
     """Same lines for every shop (layout samee approved 2026-10-16)."""
     found = get_sizes(it)
     avail, out = found or ([], [])
+    # a page whose option list could not be read cleanly can give huge labels: keep the alert readable
+    avail = [x[:40] for x in avail][:40]
+    out = [x[:40] for x in out][:40]
     # a whole-item restock or a new item: every size on sale now has just come in
-    new = [x for x in it.get('new_sizes', []) if x != '전체'] or (avail if label in ('재입고', '신상') else [])
+    new = [x[:40] for x in it.get('new_sizes', []) if x != '전체'][:40] or (avail if label in ('재입고', '신상') else [])
     had = [x for x in avail if x not in new]
-    lines = ['[%s] %s' % (label, it['name']), '가격: ' + it['price'],
+    lines = ['[%s] %s' % (label, it['name'][:200]), '가격: ' + it['price'],
              '❤️ 신규 : ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
     # every message has the same lines; '-' when a line has nothing (✅ for a whole restock or a new item)
     lines.append('✅ 가능 사이즈 : ' + (', '.join(had) or '-'))
@@ -343,6 +346,8 @@ def telegram_send(text):
             cur = ''
         cur = (cur + '\n\n' + part) if cur else part
     chunks.append(cur)
+    # one entry longer than Telegram allows would fail every time and repeat the alert forever: cut it
+    chunks = [c if len(c) <= 3900 else c[:3880] + '\n…(잘림)' for c in chunks]
     for n, chat_id in enumerate(chat_ids):
         for chunk in chunks:
             data = urllib.parse.urlencode({'chat_id': chat_id, 'text': chunk,
