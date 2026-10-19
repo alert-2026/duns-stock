@@ -47,7 +47,7 @@ jobs:
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_showroom.py || true
             timeout 90 python3 check_showroom.py || true
             n=$((n+1)); [ $n -eq 1 ] && publish
-            wait=$((20 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
+            wait=$((10 - (SECONDS - start))); [ $wait -lt 3 ] && wait=3
             sleep $wait
           done
           tail -c 200000 showroom-log.txt > /tmp/l && mv /tmp/l showroom-log.txt; publish
