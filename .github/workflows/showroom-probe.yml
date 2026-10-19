@@ -1,4 +1,4 @@
-# One-off: saves the GraphQL queries the Naver booking app uses, so the showroom check can ask for open slots.
+# One-off: checks which booking queries work, so the showroom check can ask for open slots.
 name: showroom-probe
 on:
   push:
@@ -10,34 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v4
       - run: |
-          mkdir -p /tmp/out/js; cd /tmp/out
-          UA="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"
-          # a business that is open, to see how its page and items look (Naver's own sample salon id is unknown; use the showroom and the booking home)
-          curl -sSL -A "$UA" -o page.html https://m.booking.naver.com/booking/12/bizes/1638569
-          base=$(grep -oE '/mobile/static/js/main\.[a-z0-9]+\.js' page.html | head -1)
-          curl -sSL -A "$UA" -o js/main.js "https://m.booking.naver.com$base"
-          # chunk names come from the main bundle's chunk map; fetch every chunk mentioned in the page plus Booking ones from the map
-          for c in $(grep -oE '/mobile/static/js/[^"]+\.js' page.html | sort -u); do curl -sSL -A "$UA" -o "js/$(basename $c)" "https://m.booking.naver.com$c"; done
-          ls -la js | head -40 > files.txt
-          python3 - <<'PY'
-          import re, glob
-          out = []
-          for f in glob.glob('/tmp/out/js/*.js'):
-              s = open(f, errors='replace').read()
-              for m in re.finditer(r'(query|mutation)\s+([A-Za-z0-9_]+)\s*\(', s):
-                  name = m.group(2)
-                  if re.search(r'schedule|bizItem|business|Slot|Stock|Calendar|hourly|daily', name, re.I):
-                      out.append(f'--- {f.split("/")[-1]} {name}\n' + s[m.start():m.start()+3000])
-              for m in re.finditer(r'kind:"Document"', s):
-                  pass
-          open('/tmp/out/queries.txt', 'w').write('\n\n'.join(out) or 'none found')
-          PY
-          # chunk map for lazy chunks with booking/schedule in the name
-          grep -oE '"[^"]*(Schedule|schedule|BizItem|bizItem|Calendar)[^"]*"' js/main.js | sort -u | head -80 > chunks.txt || true
-      - run: |
-          cd /tmp/out
-          auth=$(cd $GITHUB_WORKSPACE 2>/dev/null; git config --get http.https://github.com/.extraheader || true)
-          rm -rf js; git init -q -b showroom-probe-result; git add -A
+          mkdir -p /tmp/res
+          UA="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
+          base=$(curl -sSL -A "$UA" https://m.booking.naver.com/booking/12/bizes/1638569 | grep -oE '/mobile/static/js/main\.[a-z0-9]+\.js' | head -1)
+          curl -sSL -A "$UA" -o /tmp/main.js "https://m.booking.naver.com$base"
+          python3 probe.py
+          cd /tmp/res && git init -q -b showroom-probe-result && git add -A
           git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm probe
           git -c http.extraheader="AUTHORIZATION: basic $(printf x-access-token:%s "${{ github.token }}" | base64 -w0)" push -qf "https://github.com/${{ github.repository }}" showroom-probe-result
