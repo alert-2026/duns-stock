@@ -274,7 +274,11 @@ def _parse_sizes(page):
                 return avail, out
     # Generic: <select> options (MakeShop leaves them unclosed), sold-out ones say 품절/sold out
     avail, out = [], []
-    for sel in re.findall(r'<select[^>]*>(.*?)</select>', page, flags=re.S | re.I):
+    for sel_attrs, sel in re.findall(r'<select([^>]*)>(.*?)</select>', page, flags=re.S | re.I):
+        # not a size list: shipping-country / language / currency pickers (MNKL added a 210-country one on 10/19)
+        if re.search(r'country|nation|ship|deliv|lang|currency', sel_attrs, flags=re.I) \
+                or re.search(r'shipping\s*to', sel, flags=re.I):
+            continue
         for attrs, txt in re.findall(r'<option\b([^>]*)>(.*?)(?=<option\b|</option>|$)', sel, flags=re.S | re.I):
             val = re.search(r'value=["\']?([^"\'\s>]*)', attrs)
             if not val or not val.group(1) or val.group(1) in ('*', '**'):
