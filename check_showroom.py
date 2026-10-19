@@ -1,6 +1,6 @@
-"""Watches the Duns showroom Naver booking page and sends a Telegram alert when booking opens
-or a time slot has room. Run by .github/workflows/showroom.yml; state is kept in showroom-state.json."""
-import datetime, json, os, re, subprocess, sys, urllib.request
+"""Watches the Duns showroom Naver booking page and sends a Telegram alert when booking opens and whenever a
+visit time frees up again (a cancellation). Run by .github/workflows/showroom.yml; state in showroom-state.json."""
+import datetime, json, os, urllib.request
 
 BIZ = '1638569'
 PAGE = f'https://m.booking.naver.com/booking/12/bizes/{BIZ}'
@@ -16,74 +16,83 @@ def log(*a):
     print(line, flush=True)
 
 
-def http(url, body=None):
-    headers = {'User-Agent': UA, 'Referer': PAGE, 'Accept': 'application/json, text/html'}
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode()
-        headers['Content-Type'] = 'application/json'
-    req = urllib.request.Request(url, data=data, headers=headers)
+def post(url, body, referer=PAGE):
+    req = urllib.request.Request(url, json.dumps(body).encode(), {
+        'User-Agent': UA, 'Referer': referer, 'Content-Type': 'application/json'})
     with urllib.request.urlopen(req, timeout=20) as r:
-        return r.status, r.read().decode('utf-8', 'replace')
+        return json.loads(r.read().decode())
 
 
 def gql(op, query, variables):
-    st, text = http(f'https://m.booking.naver.com/graphql?opName={op}',
-                    {'operationName': op, 'variables': variables, 'query': query})
-    j = json.loads(text)
+    j = post(f'https://m.booking.naver.com/graphql?opName={op}',
+             {'operationName': op, 'variables': variables, 'query': query})
     if j.get('errors'):
-        log('graphql', op, 'errors', json.dumps(j['errors'], ensure_ascii=False)[:500])
+        log('graphql', op, 'errors', json.dumps(j['errors'], ensure_ascii=False)[:300])
     return j.get('data') or {}
 
 
 def biz_items():
     q = ('query bizItems($input: BizItemsParams) { bizItems(input: $input) '
-         '{ id bizItemId name bookableStatus isImp startDate endDate bookingTimeUnitCode } }')
-    d = gql('bizItems', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}})
-    return d.get('bizItems') or []
+         '{ bizItemId name isImp isClosedBooking bookableSettingJson } }')
+    return gql('bizItems', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}).get('bizItems') or []
 
 
-def open_slots(item_id, days=60):
-    now = datetime.datetime.now(KST)
-    end = now + datetime.timedelta(days=days)
-    q = ('query schedule($scheduleParams: ScheduleParams) { schedule(input: $scheduleParams) '
-         '{ bizItemSchedule { hourly { unitStartTime unitStock unitBookingCount isUnitSaleDay isUnitBusinessDay } '
-         'daily { date stock bookingCount isSaleDay isBusinessDay } } } }')
-    d = gql('schedule', q, {'scheduleParams': {
+def is_open(item, now):
+    s = item.get('bookableSettingJson') or {}
+    if item.get('isImp') is False or item.get('isClosedBooking') or s.get('isPaused'):
+        return False
+    if s.get('isUseOpen') and not s.get('isOpened'):
+        try:
+            return now >= datetime.datetime.fromisoformat(s['openDateTime'])
+        except (KeyError, ValueError):
+            return False
+    return True
+
+
+def free_slots(item_id, now):
+    q = ('query hourlySchedule($scheduleParams: ScheduleParams) { schedule(input: $scheduleParams) '
+         '{ bizItemSchedule { hourly { unitStartTime unitStock unitBookingCount isUnitSaleDay isUnitBusinessDay } } } }')
+    d = gql('hourlySchedule', q, {'scheduleParams': {
         'businessTypeId': 12, 'businessId': BIZ, 'bizItemId': str(item_id),
-        'startDateTime': now.strftime('%Y-%m-%dT00:00:00'), 'endDateTime': end.strftime('%Y-%m-%dT23:59:59'),
+        'startDateTime': now.strftime('%Y-%m-%dT00:00:00'),
+        'endDateTime': (now + datetime.timedelta(days=90)).strftime('%Y-%m-%dT23:59:59'),
         'fixedTime': True, 'includesHolidaySchedules': True}})
-    sched = ((d.get('schedule') or {}).get('bizItemSchedule') or {})
-    slots = set()
-    for h in sched.get('hourly') or []:
-        left = (h.get('unitStock') or 0) - (h.get('unitBookingCount') or 0)
-        if left > 0 and h.get('isUnitSaleDay') is not False and h.get('isUnitBusinessDay') is not False:
-            slots.add(h['unitStartTime'][:16])
-    if not slots:
-        for day in sched.get('daily') or []:
-            left = (day.get('stock') or 0) - (day.get('bookingCount') or 0)
-            if left > 0 and day.get('isSaleDay') is not False and day.get('isBusinessDay') is not False:
-                slots.add(day['date'][:10])
-    return slots
+    hourly = (((d.get('schedule') or {}).get('bizItemSchedule') or {}).get('hourly'))
+    if hourly is None:
+        return None
+    now_str = now.strftime('%Y-%m-%d %H:%M')
+    return sorted(h['unitStartTime'][:16] for h in hourly
+                  if (h.get('unitStock') or 0) > (h.get('unitBookingCount') or 0)
+                  and h.get('isUnitSaleDay') is not False and h.get('isUnitBusinessDay') is not False
+                  and h['unitStartTime'][:16] > now_str)
 
 
 def telegram(text):
     token = os.environ.get('TELEGRAM_TOKEN', '').strip()
-    chat = os.environ.get('TELEGRAM_CHAT_ID', '').strip()
-    if not token or not chat:
+    # same as check_stock.py: several chat ids may be listed, separated by commas
+    chats = [x.strip() for x in os.environ.get('TELEGRAM_CHAT_ID', '').split(',') if x.strip()]
+    if not token or not chats:
         log('no telegram secrets; would send:', text)
         return
-    http(f'https://api.telegram.org/bot{token}/sendMessage',
-         {'chat_id': chat, 'text': text, 'disable_web_page_preview': True})
+    for chat in chats:
+        try:
+            post(f'https://api.telegram.org/bot{token}/sendMessage',
+                 {'chat_id': chat, 'text': text, 'disable_web_page_preview': True}, referer='')
+        except Exception as e:
+            log('telegram failed', type(e).__name__, e)
 
 
-def pretty(slot):
-    try:
-        t = datetime.datetime.fromisoformat(slot)
-        wd = '월화수목금토일'[t.weekday()]
-        return t.strftime(f'%m/%d({wd}) %H:%M') if len(slot) > 10 else t.strftime(f'%m/%d({wd})')
-    except ValueError:
-        return slot
+def by_day(slots, limit=40):
+    """'10/21(수) 11:00, 11:15' per line."""
+    days = {}
+    for s in slots:
+        days.setdefault(s[:10], []).append(s[11:16])
+    lines = []
+    for day, times in sorted(days.items()):
+        t = datetime.date.fromisoformat(day)
+        shown = ', '.join(times[:limit]) + (f' 외 {len(times) - limit}개' if len(times) > limit else '')
+        lines.append(f"· {t.month}/{t.day}({'월화수목금토일'[t.weekday()]}) {shown}")
+    return '\n'.join(lines)
 
 
 def main():
@@ -91,29 +100,36 @@ def main():
         state = json.load(open(STATE))
     except (OSError, ValueError):
         state = {}
-    first = not state
-    items = biz_items()
-    log('bizItems', json.dumps(items, ensure_ascii=False)[:800])
-    bookable = [i for i in items if i.get('isImp') is not False]
-    now_slots = {}
-    for it in bookable:
-        iid = it.get('bizItemId') or it.get('id')
-        now_slots[str(iid)] = sorted(open_slots(iid))
-        log('item', iid, it.get('name'), 'open slots', len(now_slots[str(iid)]), now_slots[str(iid)][:10])
-    msgs = []
-    if bookable and not state.get('open') and not first:
-        msgs.append('예약 페이지가 열렸어요: ' + ', '.join(i.get('name') or '' for i in bookable))
-    for it in bookable:
-        iid = str(it.get('bizItemId') or it.get('id'))
-        new = [s for s in now_slots[iid] if s not in set(state.get('slots', {}).get(iid, []))]
-        if new and not first:
-            msgs.append(f"[{it.get('name')}] 빈자리 {len(new)}개\n" + '\n'.join('· ' + pretty(s) for s in new[:15])
-                        + ('\n…' if len(new) > 15 else ''))
+    now = datetime.datetime.now(KST)
+    msgs, new_state = [], {}
+    for it in biz_items():
+        iid, name = str(it['bizItemId']), it.get('name') or ''
+        prev = state.get(iid)
+        if not is_open(it, now):
+            log(name, 'not open yet', (it.get('bookableSettingJson') or {}).get('openDateTime'))
+            new_state[iid] = {'open': False}
+            continue
+        slots = free_slots(iid, now)
+        if slots is None:  # the schedule did not load; keep the old state so nothing is alerted twice
+            if prev:
+                new_state[iid] = prev
+            continue
+        log(name, 'free', len(slots), slots[:8])
+        new_state[iid] = {'open': True, 'free': slots}
+        if prev is None:
+            continue  # first look: learn quietly
+        if not prev.get('open'):
+            if slots:
+                msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12))
+            continue
+        new = [s for s in slots if s not in set(prev.get('free', []))]
+        if new:
+            msgs.append(f'[빈자리] {name}\n' + by_day(new))
     if msgs:
-        stamp = datetime.datetime.now(KST).strftime('%m/%d %H:%M')
-        telegram(f'🔔 [쇼룸 예약] 던스스웨덴 ({stamp}, KST)\n\n' + '\n\n'.join(msgs) + f'\n\n{PAGE}')
+        stamp = now.strftime('%m/%d %H:%M')
+        telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs) + f'\n\n{PAGE}')
         log('alert sent', len(msgs))
-    json.dump({'open': bool(bookable), 'slots': now_slots}, open(STATE, 'w'), ensure_ascii=False)
+    json.dump(new_state, open(STATE, 'w'), ensure_ascii=False)
 
 
 if __name__ == '__main__':
@@ -122,4 +138,4 @@ if __name__ == '__main__':
     except Exception as e:  # keep the loop going; the log shows what broke
         log('error', type(e).__name__, e)
     with open('showroom-log.txt', 'a') as f:
-        f.write(datetime.datetime.now(KST).isoformat(timespec='seconds') + '\n' + '\n'.join(LOG) + '\n')
+        f.write(datetime.datetime.now(KST).isoformat(timespec='seconds') + ' ' + ' | '.join(LOG) + '\n')

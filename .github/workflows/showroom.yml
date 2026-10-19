@@ -1,5 +1,5 @@
 # Watches the Duns showroom Naver booking page (samee asked on 10/19) and sends a Telegram alert when booking
-# opens or a time slot has room. Separate from the stock checks; like fast.yml, each run loops for ~50 minutes.
+# opens or a visit time frees up. Separate from the stock checks; like fast.yml, each run loops for ~50 minutes.
 name: showroom
 on:
   schedule:
@@ -32,7 +32,7 @@ jobs:
         run: |
           curl -sS -L -A "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)" -o /tmp/page.html \
             -w "page %{http_code} %{size_download} %{url_effective}\n" https://m.booking.naver.com/booking/12/bizes/1638569 | tee showroom-log.txt || true
-      - name: Check every minute
+      - name: check every 20 seconds
         run: |
           publish() {  # copies the log to the showroom-status branch so it can be read without opening Actions
             rm -rf /tmp/pub; mkdir /tmp/pub; cp showroom-log.txt /tmp/pub/; cp /tmp/page.html /tmp/pub/ 2>/dev/null || true
@@ -47,7 +47,7 @@ jobs:
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_showroom.py || true
             timeout 90 python3 check_showroom.py || true
             n=$((n+1)); [ $n -eq 1 ] && publish
-            wait=$((60 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
+            wait=$((20 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
             sleep $wait
           done
           tail -c 200000 showroom-log.txt > /tmp/l && mv /tmp/l showroom-log.txt; publish
