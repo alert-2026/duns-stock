@@ -329,8 +329,9 @@ def telegram_send(text):
     conf = load_json(TG_CONF, {})
     # GitHub Actions passes these as secrets; on the Mac they come from telegram.json
     token = (os.environ.get('TELEGRAM_TOKEN') or conf.get('token') or '').strip()
-    chat_id = str(os.environ.get('TELEGRAM_CHAT_ID') or conf.get('chat_id') or '').strip()
-    if not token or not chat_id:
+    # several people can get the alerts: chat ids separated by commas, samee's own first
+    chat_ids = [x.strip() for x in str(os.environ.get('TELEGRAM_CHAT_ID') or conf.get('chat_id') or '').split(',') if x.strip()]
+    if not token or not chat_ids:
         log('telegram not configured; message not sent')
         return False
     ok = True
@@ -342,17 +343,22 @@ def telegram_send(text):
             cur = ''
         cur = (cur + '\n\n' + part) if cur else part
     chunks.append(cur)
-    for chunk in chunks:
-        data = urllib.parse.urlencode({'chat_id': chat_id, 'text': chunk,
-                                       'disable_web_page_preview': 'true'}).encode()
-        try:
-            with urllib.request.urlopen('https://api.telegram.org/bot%s/sendMessage' % token,
-                                        data=data, timeout=30) as r:
-                ok = ok and json.load(r).get('ok', False)
-        except Exception as e:  # noqa: BLE001
-            # do not log the exception text: it may contain the request URL with the token
-            log('telegram send failed: %s' % type(e).__name__)
-            ok = False
+    for n, chat_id in enumerate(chat_ids):
+        for chunk in chunks:
+            data = urllib.parse.urlencode({'chat_id': chat_id, 'text': chunk,
+                                           'disable_web_page_preview': 'true'}).encode()
+            try:
+                with urllib.request.urlopen('https://api.telegram.org/bot%s/sendMessage' % token,
+                                            data=data, timeout=30) as r:
+                    sent = json.load(r).get('ok', False)
+            except Exception as e:  # noqa: BLE001
+                # do not log the exception text: it may contain the request URL with the token
+                log('telegram send failed (recipient %d): %s' % (n + 1, type(e).__name__))
+                sent = False
+            # only samee's own chat decides whether the alert counts as delivered, so someone who
+            # blocked the bot can't make the same alert repeat every check
+            if n == 0:
+                ok = ok and sent
     return ok
 
 
