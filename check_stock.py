@@ -185,18 +185,18 @@ def get_sizes(it):
 
 
 def alert_block(label, it):
-    """Same lines for every shop (layout samee approved 2026-10-16)."""
-    found = get_sizes(it)
-    avail, out = found or ([], [])
-    # a whole-item restock or a new item: every size on sale now has just come in
-    new = [x for x in it.get('new_sizes', []) if x != '전체'] or (avail if label in ('재입고', '신상') else [])
-    had = [x for x in avail if x not in new]
-    lines = ['[%s] %s' % (label, it['name']), '가격: ' + it['price'],
-             '❤️ 신규 : ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
-    # every message has the same lines; '-' when a line has nothing (✅ for a whole restock or a new item)
-    lines.append('✅ 가능 사이즈 : ' + (', '.join(had) or '-'))
-    lines.append('❌ 품절 : ' + (', '.join(out) or '-'))
-    return '\n'.join(lines + [it['url']])
+    """Same lines for every shop (layout samee approved 2026-10-11); unknown values stay blank."""
+    avail, out = get_sizes(it) or ([], [])
+    sizes = ', '.join(avail)
+    if it.get('new_sizes'):
+        sizes += ' (새로 들어옴: %s)' % ', '.join(it['new_sizes'])
+    return '\n'.join([
+        '[%s] %s' % (label, it['name']),
+        '가격: ' + it['price'],
+        '사이즈: ' + sizes,
+        '품절 사이즈: ' + ', '.join(out),
+        it['url'],
+    ])
 
 
 PAGED = ('cafe24', 'littleluna', 'bbambam', 'coupleshot', 'imweb', 'sixshop')
@@ -244,44 +244,11 @@ def more_pages(page, url, kind, first, key):
     return more
 
 
-FORET_LIST = ('https://www.foretforet.com/shop/product_list.action.html?action_mode=get_list&page=%d'
-              '&sep1=021&xcode=021&mcode=001&scode=090&type=Y&sort=manual&soldout_sort=Y&is_list_buy=0')
-
-
-def foret_items(url):
-    """All Foret Foret Duns items: the category page shows 12, the rest come from this JSON list (88 pages)."""
-    def get(n):
-        for attempt in (1, 2):
-            try:
-                return json.loads(fetch(FORET_LIST % n))
-            except (OSError, ValueError):
-                if attempt == 2:
-                    raise
-                time.sleep(3)
-    first = get(1)
-    pages = int(first.get('total_page_cnt') or 1)
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        data = [first] + list(ex.map(get, range(2, min(pages, 120) + 1)))
-    items, seen = [], set()
-    for n, d in enumerate(data, 1):
-        for it in parsers.parse_foret(d.get('html', ''), url):
-            if it['id'] not in seen:
-                seen.add(it['id'])
-                it['page'] = n
-                items.append(it)
-    # a partial read would make the missing items look new later, so fail the shop instead
-    if len(items) < 0.9 * int(first.get('total') or 0):
-        raise ValueError('read %d of %s items' % (len(items), first.get('total')))
-    return items
-
-
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
         if kind == 'shopify':
             items, page = shopify_items(url), ''
-        elif kind == 'foret':
-            items, page = foret_items(url), ''
         else:
             page = fetch_rendered(url, key) if js else fetch(url)
             items = parse(kind, page, url)
@@ -344,7 +311,7 @@ def telegram_send(text):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot', 'foretforet'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
 
 
 def scan_sizes(results, state):
@@ -376,9 +343,6 @@ def scan_sizes(results, state):
     return len(jobs)
 
 
-CURRENT_SEASON = r'26AU|FALL26|AW26'
-
-
 def rotate_sizes(results, state, shops, batch=60):
     """For the 30-second loop: re-read the sizes of a few on-sale items per check, oldest-read first,
     and carry the last known sizes for the rest, so a single size coming back (a cancellation) is caught
@@ -397,12 +361,7 @@ def rotate_sizes(results, state, shops, batch=60):
             if not it['soldout']:
                 jobs.append(it)
     jobs.sort(key=lambda it: it.get('size_checked', ''))
-    # this season's items sell out and come back most often: two thirds of each batch goes to them
-    season = [it for it in jobs if re.search(CURRENT_SEASON, it['name'], flags=re.I)]
-    picked = season[:batch * 2 // 3]
-    chosen = {id(it) for it in picked}
-    rest = [it for it in jobs if id(it) not in chosen]
-    jobs = picked + rest[:batch - len(picked)]
+    jobs = jobs[:batch]
 
     def one(it):
         try:
@@ -425,14 +384,7 @@ def main():
     skip = set(filter(None, os.environ.get('SKIP_SHOPS', '').split(',')))
     SHOPS = [x for x in SHOPS if (not only or x[0] in only) and x[0] not in skip]
     state = load_json(STATE, {})
-    # sizes saved before 10/16 kept Cafe24's escaped slash (74\/80); fix them so they don't look like new sizes
-    for shop in state.values():
-        for rec in shop.values() if isinstance(shop, dict) else []:
-            for f in ('sizes', 'sizes_out'):
-                if isinstance(rec, dict) and isinstance(rec.get(f), list):
-                    rec[f] = [x.replace('\\/', '/') for x in rec[f]]
-    # every shop at once, so a check takes as long as the slowest shop (about 20s), not the sum
-    with ThreadPoolExecutor(max_workers=max(1, len(SHOPS))) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(ex.map(check_shop, SHOPS))
     if os.environ.get('SIZE_SCAN') == '1':
         log('size scan: %d product pages' % scan_sizes(results, state))
@@ -508,26 +460,6 @@ def main():
                 n_changes += 1
             known[it['id']] = {k: v for k, v in dict(it, last_seen=now).items() if k != 'new_sizes'}
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
-
-    # ALERT_LABELS: the 5-minute size loop only sends [사이즈 재입고]; the 1-minute loop sends the rest
-    labels = set(filter(None, os.environ.get('ALERT_LABELS', '').split(',')))
-    if labels:
-        changes = [c for c in changes if c[0] in labels]
-
-    # Gurm's Duns and NEW lists are cached separately, so one restock can show up a run apart on each:
-    # don't send the same alert for the same product again within 5 minutes
-    recent = {k: t for k, t in state.get('_recent', {}).items() if time.time() - t < 300}
-    fresh = []
-    for c in changes:
-        label, shop, it = c
-        k = '%s|%s|%s|%s' % (label, shop, it['id'], ','.join(it.get('new_sizes', [])))
-        if k in recent:
-            log('  already alerted: %s %s %s' % (label, shop, it['name'][:40]))
-            continue
-        recent[k] = time.time()
-        fresh.append(c)
-    changes = fresh
-    state['_recent'] = recent
 
     if changes:
         order = {'재입고': 0, '사이즈 재입고': 0, '신상': 1, '품절': 2}

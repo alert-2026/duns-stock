@@ -36,7 +36,9 @@ jobs:
             # every check reads all shops (samee asked on 10/17 for every shop at about 35 seconds)
             ONLY_SHOPS=
             ROTATE_SIZE_SHOPS=gurm,gurmnew
-            ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
+            # Present Project has only a few items with options: read all of them every check
+            SIZE_EVERY_SHOPS=presentproject
+            ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS SIZE_EVERY_SHOPS=$SIZE_EVERY_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
             # start a check every 35 seconds; never less than 5s apart
             wait=$((35 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
             sleep $wait

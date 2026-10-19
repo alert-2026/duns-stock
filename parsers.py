@@ -214,21 +214,13 @@ def parse_shopify(data, base):
 
 # ---------------------------------------------------------------- product sizes
 def _option_label(text):
-    t = clean(text).replace('\\/', '/')  # Cafe24 sometimes leaves JSON's escaped slash: 74\/80
+    t = clean(text)
     t = re.sub(r'\s*\[?\(?\s*(품절|sold\s*out)\s*\)?\]?\s*', ' ', t, flags=re.I).strip()
     return re.sub(r'\s*\(?[+-]\s*[\d,]+\s*원?\)?$', '', t).strip()
 
 
 def parse_sizes(page):
     """Return (available, sold_out) option labels from a product detail page, or None if unknown."""
-    # sizes are a bonus: an odd page must never stop the whole check
-    try:
-        return _parse_sizes(page)
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _parse_sizes(page):
     # Cafe24 keeps per-option stock in a JS variable
     m = re.search(r"option_stock_data\s*=\s*'(.*?)';", page, flags=re.S)
     if m:
@@ -240,8 +232,6 @@ def _parse_sizes(page):
         if isinstance(data, dict) and data:
             avail, out = [], []
             for opt in data.values():
-                if not isinstance(opt, dict):  # some pages mix flags into the option data
-                    continue
                 label = opt.get('option_value_orginal') or opt.get('option_value') or ''
                 if isinstance(label, list):
                     label = '/'.join(str(x) for x in label)
