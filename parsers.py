@@ -214,13 +214,38 @@ def parse_shopify(data, base):
 
 # ---------------------------------------------------------------- product sizes
 def _option_label(text):
-    t = clean(text)
+    t = clean(text).replace('\\/', '/')  # Cafe24 sometimes leaves JSON's escaped slash: 74\/80
     t = re.sub(r'\s*\[?\(?\s*(품절|sold\s*out)\s*\)?\]?\s*', ' ', t, flags=re.I).strip()
     return re.sub(r'\s*\(?[+-]\s*[\d,]+\s*원?\)?$', '', t).strip()
 
 
+def parse_imweb_options(option_html):
+    """(available, sold_out) from imweb's load_option.cm answer; only the first option list is read
+    (a second list only loads after the first is picked)."""
+    group = re.split(r'_form_select_wrap_', option_html)
+    if len(group) < 2:
+        return None
+    avail, out = [], []
+    for item in re.findall(r'<div class="dropdown-item[^"]*">(.*?)</a></div>', group[1], flags=re.S):
+        m = re.search(r'<span class="blocked margin-bottom-lg">(.*?)</span>', item, flags=re.S)
+        label = re.sub(r'\s+', ' ', _option_label(m.group(1))) if m else ''
+        if not label:
+            continue
+        soldout = '품절' in item or 'opacity-40' in item or 'not-allowed' in item
+        (out if soldout else avail).append(label)
+    return (avail, out) if avail or out else None
+
+
 def parse_sizes(page):
     """Return (available, sold_out) option labels from a product detail page, or None if unknown."""
+    # sizes are a bonus: an odd page must never stop the whole check
+    try:
+        return _parse_sizes(page)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _parse_sizes(page):
     # Cafe24 keeps per-option stock in a JS variable
     m = re.search(r"option_stock_data\s*=\s*'(.*?)';", page, flags=re.S)
     if m:
@@ -232,6 +257,8 @@ def parse_sizes(page):
         if isinstance(data, dict) and data:
             avail, out = [], []
             for opt in data.values():
+                if not isinstance(opt, dict):  # some pages mix flags into the option data
+                    continue
                 label = opt.get('option_value_orginal') or opt.get('option_value') or ''
                 if isinstance(label, list):
                     label = '/'.join(str(x) for x in label)
