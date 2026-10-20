@@ -37,6 +37,13 @@ def biz_items():
     return gql('bizItems', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}).get('bizItems') or []
 
 
+def shop_visible():
+    """On 10/20 the item opened at 11:00 but the shop itself was still hidden (business is null), so the page
+    showed an error; booking is only really possible once the shop shows up."""
+    q = 'query business($input: BusinessParams) { business(input: $input) { businessId } }'
+    return bool(gql('business', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}).get('business'))
+
+
 def is_open(item, now):
     s = item.get('bookableSettingJson') or {}
     if item.get('isImp') is False or item.get('isClosedBooking') or s.get('isPaused'):
@@ -102,12 +109,14 @@ def main():
         state = {}
     now = datetime.datetime.now(KST)
     msgs, new_state = [], {}
+    visible = shop_visible()
     for it in biz_items():
         iid, name = str(it['bizItemId']), it.get('name') or ''
         prev = state.get(iid)
-        if not is_open(it, now):
-            log(name, 'not open yet', (it.get('bookableSettingJson') or {}).get('openDateTime'))
-            new_state[iid] = {'open': False}
+        if not (visible and is_open(it, now)):
+            log(name, 'not open yet', 'shop visible' if visible else 'shop hidden',
+                (it.get('bookableSettingJson') or {}).get('openDateTime'))
+            new_state[iid] = {'live': False}
             continue
         slots = free_slots(iid, now)
         if slots is None:  # the schedule did not load; keep the old state so nothing is alerted twice
@@ -115,10 +124,10 @@ def main():
                 new_state[iid] = prev
             continue
         log(name, 'free', len(slots), slots[:8])
-        new_state[iid] = {'open': True, 'free': slots}
+        new_state[iid] = {'live': True, 'free': slots}
         if prev is None:
             continue  # first look: learn quietly
-        if not prev.get('open'):
+        if not prev.get('live'):
             if slots:
                 msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12))
             continue
