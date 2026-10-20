@@ -4,6 +4,8 @@ import datetime, json, os, urllib.request
 
 BIZ = '1638569'
 PAGE = f'https://m.booking.naver.com/booking/12/bizes/{BIZ}'
+# alerts link straight to the item's date/time page (samee asked on 10/20); startDate picks the day when Naver honours it
+ITEM_PAGE = PAGE + '/items/{item}?startDate={day}'
 UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'
 STATE = os.environ.get('SHOWROOM_STATE', 'showroom-state.json')
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -92,8 +94,8 @@ def telegram(text):
             log('telegram failed', type(e).__name__, e)
 
 
-def by_day(slots, limit=40):
-    """'10/21(수) 11:00, 11:15' per line."""
+def by_day(slots, limit=40, item=None):
+    """'10/21(수) 11:00, 11:15' per line, each followed by a link to that day when item is given."""
     days = {}
     for s in slots:
         days.setdefault(s[:10], []).append(s[11:16])
@@ -102,6 +104,8 @@ def by_day(slots, limit=40):
         t = datetime.date.fromisoformat(day)
         shown = ', '.join(times[:limit]) + (f' 외 {len(times) - limit}개' if len(times) > limit else '')
         lines.append(f"· {t.month}/{t.day}({'월화수목금토일'[t.weekday()]}) {shown}")
+        if item:
+            lines.append('  ' + ITEM_PAGE.format(item=item, day=day))
     return '\n'.join(lines)
 
 
@@ -132,14 +136,14 @@ def main():
             continue  # first look: learn quietly
         if not prev.get('live'):
             if slots:
-                msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12))
+                msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12, iid))
             continue
         new = [s for s in slots if s not in set(prev.get('free', []))]
         if new:
-            msgs.append(f'[빈자리] {name}\n' + by_day(new))
+            msgs.append(f'[빈자리] {name}\n' + by_day(new, item=iid))
     if msgs:
         stamp = now.strftime('%m/%d %H:%M')
-        telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs) + f'\n\n{PAGE}')
+        telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs))
         log('alert sent', len(msgs))
     json.dump(new_state, open(STATE, 'w'), ensure_ascii=False)
 
