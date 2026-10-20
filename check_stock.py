@@ -236,6 +236,10 @@ def more_pages(page, url, kind, first, key):
     m = re.search(r'xans-product-normalpaging(.*?)</div>', page, flags=re.S)
     if m:  # Cafe24 page links name the last page
         last = min(MAX_PAGES, max([int(n) for n in re.findall(r'[?&]page=(\d+)', m.group(1))] or [1]))
+    if kind == 'coupleshot':  # MakeShop's pager links to the last page ([>>] = mk_lastpager)
+        m = re.search(r"(id='mk_pager'.*)", page, flags=re.S)
+        if m:
+            last = min(MAX_PAGES, max([int(n) for n in re.findall(r'[?&]page=(\d+)', m.group(1)[:20000])] or [1]))
     param = 'page'
     if kind == 'sixshop':  # rendered pages are slow, so only read the pages its page buttons show
         param = 'productListPage'
@@ -256,7 +260,8 @@ def more_pages(page, url, kind, first, key):
 
     pages = {}
     if m and kind != 'sixshop' and last > 2:
-        # the last page is known, so read the pages side by side (Gurm's ~40 pages in seconds, not ~40s)
+        # the last page is known, so read the pages side by side (Gurm's ~40 pages in seconds, not ~40s;
+        # Mini Couple Shot's 19 pages in ~5s instead of ~24s)
         with ThreadPoolExecutor(max_workers=6) as ex:
             pages = dict(zip(range(2, last + 1), ex.map(get, [page_url(n) for n in range(2, last + 1)])))
     for n in range(2, last + 1):

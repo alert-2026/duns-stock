@@ -50,7 +50,7 @@ jobs:
             # pick up code changes without waiting for the next run
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
             # Gurm's sizes are checked by fast.yml: here it only keeps its record fresh
-            LEARN_ONLY_SHOPS=gurm,gurmnew ALERT_LABELS="사이즈 재입고" timeout 420 python3 check_stock.py || echo "run stopped early (exit $?)"
+            LEARN_ONLY_SHOPS=gurm,gurmnew,cuddlybunny,coupleshot ALERT_LABELS="사이즈 재입고" timeout 420 python3 check_stock.py || echo "run stopped early (exit $?)"
             # start a check every 5 minutes; stop when the next one wouldn't finish in this run
             wait=$((300 - (SECONDS - start))); [ $wait -lt 10 ] && wait=10
             [ $((SECONDS + wait + 420)) -lt $((end + 300)) ] || break
