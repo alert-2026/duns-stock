@@ -4,6 +4,8 @@ import datetime, json, os, urllib.request
 
 BIZ = '1638569'
 PAGE = f'https://m.booking.naver.com/booking/12/bizes/{BIZ}'
+# alerts link straight to the item's date/time page (samee asked on 10/20); startDate picks the day when Naver honours it
+ITEM_PAGE = PAGE + '/items/{item}?startDate={day}'
 UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'
 STATE = os.environ.get('SHOWROOM_STATE', 'showroom-state.json')
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -92,8 +94,8 @@ def telegram(text):
             log('telegram failed', type(e).__name__, e)
 
 
-def by_day(slots, limit=40):
-    """'10/21(수) 11:00, 11:15' per line."""
+def by_day(slots, limit=40, item=None):
+    """'10/21(수) 11:00, 11:15' per line, each followed by a link to that day when item is given."""
     days = {}
     for s in slots:
         days.setdefault(s[:10], []).append(s[11:16])
@@ -102,7 +104,16 @@ def by_day(slots, limit=40):
         t = datetime.date.fromisoformat(day)
         shown = ', '.join(times[:limit]) + (f' 외 {len(times) - limit}개' if len(times) > limit else '')
         lines.append(f"· {t.month}/{t.day}({'월화수목금토일'[t.weekday()]}) {shown}")
+        if item:
+            lines.append('  ' + ITEM_PAGE.format(item=item, day=day))
     return '\n'.join(lines)
+
+
+def slot_message(slot, item):
+    """One message per free time (samee asked on 10/20): '🔔 구름쇼룸 예약가능 10/23(금) 12:30' and a link to that day."""
+    t = datetime.datetime.fromisoformat(slot)
+    when = f"{t.month}/{t.day}({'월화수목금토일'[t.weekday()]}) {slot[11:16]}"
+    return f'🔔 구름쇼룸 예약가능 {when}\n' + ITEM_PAGE.format(item=item, day=slot[:10])
 
 
 def main():
@@ -111,9 +122,20 @@ def main():
     except (OSError, ValueError):
         state = {}
     now = datetime.datetime.now(KST)
-    msgs, new_state = [], {}
-    visible = shop_visible()
-    for it in biz_items():
+    msgs, singles, new_state = [], [], {'_full': state.get('_full', 0)}
+    # once booking is live only the schedule is read each check (one request), so checks can be 5s apart;
+    # the shop and item settings are re-read once a minute
+    items = state.get('_items')
+    live = items and all((state.get(i['bizItemId']) or {}).get('live') for i in items)
+    if live and now.timestamp() - state.get('_full', 0) < 60:
+        visible = True
+    else:
+        visible, items = shop_visible(), biz_items()
+        new_state['_full'] = now.timestamp()
+    new_state['_items'] = [{'bizItemId': str(i['bizItemId']), 'name': i.get('name'), 'isImp': i.get('isImp'),
+                            'isClosedBooking': i.get('isClosedBooking'), 'bookableSettingJson': i.get('bookableSettingJson')}
+                           for i in items]
+    for it in new_state['_items']:
         iid, name = str(it['bizItemId']), it.get('name') or ''
         prev = state.get(iid)
         # the shop query may stay empty even after opening; bookings appearing also prove it is open
@@ -132,15 +154,17 @@ def main():
             continue  # first look: learn quietly
         if not prev.get('live'):
             if slots:
-                msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12))
+                msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12, iid))
             continue
-        new = [s for s in slots if s not in set(prev.get('free', []))]
-        if new:
-            msgs.append(f'[빈자리] {name}\n' + by_day(new))
+        for slot in [s for s in slots if s not in set(prev.get('free', []))]:
+            singles.append(slot_message(slot, iid))
     if msgs:
         stamp = now.strftime('%m/%d %H:%M')
-        telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs) + f'\n\n{PAGE}')
+        telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs))
         log('alert sent', len(msgs))
+    for text in singles:
+        telegram(text)
+        log('slot alert sent', text.splitlines()[0])
     json.dump(new_state, open(STATE, 'w'), ensure_ascii=False)
 
 
