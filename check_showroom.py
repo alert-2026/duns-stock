@@ -122,16 +122,20 @@ def main():
     except (OSError, ValueError):
         state = {}
     now = datetime.datetime.now(KST)
-    msgs, singles, new_state = [], [], {'_full': state.get('_full', 0)}
+    msgs, singles, new_state = [], [], {'_full': state.get('_full', 0), '_visible': state.get('_visible')}
     # once booking is live only the schedule is read each check (one request), so checks can be 5s apart;
     # the shop and item settings are re-read once a minute
     items = state.get('_items')
     live = items and all((state.get(i['bizItemId']) or {}).get('live') for i in items)
+    reopened = False
     if live and now.timestamp() - state.get('_full', 0) < 60:
-        visible = True
+        visible = bool(state.get('_visible'))
     else:
         visible, items = shop_visible(), biz_items()
         new_state['_full'] = now.timestamp()
+        # samee asked on 10/20: the shop was hidden after filling up; say when it is public again
+        reopened = visible and state.get('_visible') is False
+        new_state['_visible'] = visible
     new_state['_items'] = [{'bizItemId': str(i['bizItemId']), 'name': i.get('name'), 'isImp': i.get('isImp'),
                             'isClosedBooking': i.get('isClosedBooking'), 'bookableSettingJson': i.get('bookableSettingJson')}
                            for i in items]
@@ -158,8 +162,10 @@ def main():
             continue
         for slot in [s for s in slots if s not in set(prev.get('free', []))]:
             singles.append(slot_message(slot, iid))
-    if msgs:
-        stamp = now.strftime('%m/%d %H:%M')
+    if reopened:
+        free = sorted(s for k, v in new_state.items() if not k.startswith('_') for s in v.get('free', []))
+        singles.insert(0, '🔔 구름쇼룸 예약 페이지가 다시 열렸어요\n' + (f'빈자리 {len(free)}개\n' + by_day(free) if free else '빈자리는 아직 없어요')
+                       + '\n' + PAGE + '/items/8129134') = now.strftime('%m/%d %H:%M')
         telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs))
         log('alert sent', len(msgs))
     for text in singles:
