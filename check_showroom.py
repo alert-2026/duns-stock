@@ -165,7 +165,9 @@ def main():
     if reopened:
         free = sorted(s for k, v in new_state.items() if not k.startswith('_') for s in v.get('free', []))
         singles.insert(0, '🔔 구름쇼룸 예약 페이지가 다시 열렸어요\n' + (f'빈자리 {len(free)}개\n' + by_day(free) if free else '빈자리는 아직 없어요')
-                       + '\n' + PAGE + '/items/8129134') = now.strftime('%m/%d %H:%M')
+                       + '\n' + PAGE + '/items/8129134')
+    if msgs:
+        stamp = now.strftime('%m/%d %H:%M')
         telegram(f'🔔 던스 쇼룸 예약 ({stamp}, KST)\n\n' + '\n\n'.join(msgs))
         log('alert sent', len(msgs))
     for text in singles:
