@@ -56,7 +56,8 @@ def is_open(item, now):
     return True
 
 
-def free_slots(item_id, now):
+def free_slots(item_id, now, booked_needed=False):
+    """Free times; with booked_needed, None unless someone has booked (proof booking really works)."""
     q = ('query hourlySchedule($scheduleParams: ScheduleParams) { schedule(input: $scheduleParams) '
          '{ bizItemSchedule { hourly { unitStartTime unitStock unitBookingCount isUnitSaleDay isUnitBusinessDay } } } }')
     d = gql('hourlySchedule', q, {'scheduleParams': {
@@ -68,6 +69,8 @@ def free_slots(item_id, now):
     if hourly is None:
         return None
     now_str = now.strftime('%Y-%m-%d %H:%M')
+    if not any(h.get('unitBookingCount') for h in hourly) and booked_needed:
+        return None
     return sorted(h['unitStartTime'][:16] for h in hourly
                   if (h.get('unitStock') or 0) > (h.get('unitBookingCount') or 0)
                   and h.get('isUnitSaleDay') is not False and h.get('isUnitBusinessDay') is not False
@@ -113,15 +116,15 @@ def main():
     for it in biz_items():
         iid, name = str(it['bizItemId']), it.get('name') or ''
         prev = state.get(iid)
-        if not (visible and is_open(it, now)):
+        # the shop query may stay empty even after opening; bookings appearing also prove it is open
+        slots = free_slots(iid, now, booked_needed=not visible) if is_open(it, now) else None
+        if slots is None and prev and prev.get('live'):
+            new_state[iid] = prev  # a failed read after opening; keep the old state so nothing is alerted twice
+            continue
+        if slots is None:
             log(name, 'not open yet', 'shop visible' if visible else 'shop hidden',
                 (it.get('bookableSettingJson') or {}).get('openDateTime'))
             new_state[iid] = {'live': False}
-            continue
-        slots = free_slots(iid, now)
-        if slots is None:  # the schedule did not load; keep the old state so nothing is alerted twice
-            if prev:
-                new_state[iid] = prev
             continue
         log(name, 'free', len(slots), slots[:8])
         new_state[iid] = {'live': True, 'free': slots}
