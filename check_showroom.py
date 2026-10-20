@@ -123,19 +123,16 @@ def main():
         state = {}
     now = datetime.datetime.now(KST)
     msgs, singles, new_state = [], [], {'_full': state.get('_full', 0), '_visible': state.get('_visible')}
-    # once booking is live only the schedule is read each check (one request), so checks can be 5s apart;
-    # the shop and item settings are re-read once a minute
     items = state.get('_items')
     live = items and all((state.get(i['bizItemId']) or {}).get('live') for i in items)
-    reopened = False
-    if live and now.timestamp() - state.get('_full', 0) < 60:
-        visible = bool(state.get('_visible'))
-    else:
-        visible, items = shop_visible(), biz_items()
+    # samee asked on 10/20: the shop was hidden after filling up and reopened only briefly, so whether it is
+    # public is read every check; the item settings are re-read once a minute
+    visible = shop_visible()
+    reopened = visible and state.get('_visible') is False
+    new_state['_visible'] = visible
+    if not (live and now.timestamp() - state.get('_full', 0) < 60):
+        items = biz_items()
         new_state['_full'] = now.timestamp()
-        # samee asked on 10/20: the shop was hidden after filling up; say when it is public again
-        reopened = visible and state.get('_visible') is False
-        new_state['_visible'] = visible
     new_state['_items'] = [{'bizItemId': str(i['bizItemId']), 'name': i.get('name'), 'isImp': i.get('isImp'),
                             'isClosedBooking': i.get('isClosedBooking'), 'bookableSettingJson': i.get('bookableSettingJson')}
                            for i in items]
