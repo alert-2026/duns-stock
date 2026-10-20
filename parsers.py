@@ -204,6 +204,7 @@ def parse_shopify(data, base):
             'id': str(p['id']),
             'name': p.get('title', ''),
             'price': ('%s SEK' % ('{:,.0f}'.format(min(prices)))) if prices else '',
+            'min_price': ('{:,.2f}'.format(min(prices))) if prices else '',
             'url': '%s/products/%s' % (base.rstrip('/'), p.get('handle', '')),
             'soldout': not avail,
             'sizes': [x for x in avail if x],
