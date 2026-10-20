@@ -37,6 +37,13 @@ def biz_items():
     return gql('bizItems', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}).get('bizItems') or []
 
 
+def shop_visible():
+    """On 10/20 the item opened at 11:00 but the shop itself was still hidden (business is null), so the page
+    showed an error; booking is only really possible once the shop shows up."""
+    q = 'query business($input: BusinessParams) { business(input: $input) { businessId } }'
+    return bool(gql('business', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}).get('business'))
+
+
 def is_open(item, now):
     s = item.get('bookableSettingJson') or {}
     if item.get('isImp') is False or item.get('isClosedBooking') or s.get('isPaused'):
@@ -49,7 +56,8 @@ def is_open(item, now):
     return True
 
 
-def free_slots(item_id, now):
+def free_slots(item_id, now, booked_needed=False):
+    """Free times; with booked_needed, None unless someone has booked (proof booking really works)."""
     q = ('query hourlySchedule($scheduleParams: ScheduleParams) { schedule(input: $scheduleParams) '
          '{ bizItemSchedule { hourly { unitStartTime unitStock unitBookingCount isUnitSaleDay isUnitBusinessDay } } } }')
     d = gql('hourlySchedule', q, {'scheduleParams': {
@@ -61,6 +69,8 @@ def free_slots(item_id, now):
     if hourly is None:
         return None
     now_str = now.strftime('%Y-%m-%d %H:%M')
+    if not any(h.get('unitBookingCount') for h in hourly) and booked_needed:
+        return None
     return sorted(h['unitStartTime'][:16] for h in hourly
                   if (h.get('unitStock') or 0) > (h.get('unitBookingCount') or 0)
                   and h.get('isUnitSaleDay') is not False and h.get('isUnitBusinessDay') is not False
@@ -102,23 +112,25 @@ def main():
         state = {}
     now = datetime.datetime.now(KST)
     msgs, new_state = [], {}
+    visible = shop_visible()
     for it in biz_items():
         iid, name = str(it['bizItemId']), it.get('name') or ''
         prev = state.get(iid)
-        if not is_open(it, now):
-            log(name, 'not open yet', (it.get('bookableSettingJson') or {}).get('openDateTime'))
-            new_state[iid] = {'open': False}
+        # the shop query may stay empty even after opening; bookings appearing also prove it is open
+        slots = free_slots(iid, now, booked_needed=not visible) if is_open(it, now) else None
+        if slots is None and prev and prev.get('live'):
+            new_state[iid] = prev  # a failed read after opening; keep the old state so nothing is alerted twice
             continue
-        slots = free_slots(iid, now)
-        if slots is None:  # the schedule did not load; keep the old state so nothing is alerted twice
-            if prev:
-                new_state[iid] = prev
+        if slots is None:
+            log(name, 'not open yet', 'shop visible' if visible else 'shop hidden',
+                (it.get('bookableSettingJson') or {}).get('openDateTime'))
+            new_state[iid] = {'live': False}
             continue
         log(name, 'free', len(slots), slots[:8])
-        new_state[iid] = {'open': True, 'free': slots}
+        new_state[iid] = {'live': True, 'free': slots}
         if prev is None:
             continue  # first look: learn quietly
-        if not prev.get('open'):
+        if not prev.get('live'):
             if slots:
                 msgs.append(f'[예약 오픈] {name}\n빈자리 {len(slots)}개\n' + by_day(slots, 12))
             continue
