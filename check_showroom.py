@@ -115,9 +115,20 @@ def main():
     except (OSError, ValueError):
         state = {}
     now = datetime.datetime.now(KST)
-    msgs, new_state = [], {}
-    visible = shop_visible()
-    for it in biz_items():
+    msgs, new_state = [], {'_full': state.get('_full', 0)}
+    # once booking is live only the schedule is read each check (one request), so checks can be 5s apart;
+    # the shop and item settings are re-read once a minute
+    items = state.get('_items')
+    live = items and all((state.get(i['bizItemId']) or {}).get('live') for i in items)
+    if live and now.timestamp() - state.get('_full', 0) < 60:
+        visible = True
+    else:
+        visible, items = shop_visible(), biz_items()
+        new_state['_full'] = now.timestamp()
+    new_state['_items'] = [{'bizItemId': str(i['bizItemId']), 'name': i.get('name'), 'isImp': i.get('isImp'),
+                            'isClosedBooking': i.get('isClosedBooking'), 'bookableSettingJson': i.get('bookableSettingJson')}
+                           for i in items]
+    for it in new_state['_items']:
         iid, name = str(it['bizItemId']), it.get('name') or ''
         prev = state.get(iid)
         # the shop query may stay empty even after opening; bookings appearing also prove it is open
