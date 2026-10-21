@@ -41,6 +41,8 @@ jobs:
               && git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "Showroom check log" \
               && git -c http.extraheader="$auth" push -qf "https://github.com/${{ github.repository }}" showroom-status) || true
           }
+          # the showroom runs 10/21-10/25; stop checking once it is over
+          [ "$(TZ=Asia/Seoul date +%Y%m%d)" -gt 20261025 ] && { echo 'showroom over'; exit 0; }
           end=$((SECONDS + 50*60)); n=0
           while [ $SECONDS -lt $end ]; do
             start=$SECONDS
