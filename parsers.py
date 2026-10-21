@@ -237,6 +237,15 @@ def parse_imweb_options(option_html):
     return (avail, out) if avail or out else None
 
 
+def parse_counts(page):
+    """{size: units left} where the page tells it (Foret Foret's MakeShop data has sto_real_stock per option)."""
+    counts = {}
+    for vals, n in re.findall(r"opt_values:'([^']*)'[^{}]*?sto_real_stock:'(\d+)'", page):
+        label = vals.split(',', 1)[1].replace('_', '-') if re.match(r'^[A-Z]{2,4},\S+$', vals) else vals
+        counts[label] = int(n)
+    return counts
+
+
 def parse_sizes(page):
     """Return (available, sold_out) option labels from a product detail page, or None if unknown."""
     # sizes are a bonus: an odd page must never stop the whole check

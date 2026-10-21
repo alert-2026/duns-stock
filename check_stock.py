@@ -219,6 +219,14 @@ def alert_block(label, it):
     # a whole-item restock or a new item: every size on sale now has just come in
     new = [x[:40] for x in it.get('new_sizes', []) if x != '전체'][:40] or (avail if label in ('재입고', '신상') else [])
     had = [x for x in avail if x not in new]
+    # Foret Foret's product page tells how many are left per size: show it, e.g. "80 (2개)" (samee asked on 10/21)
+    if 'foretforet.com' in it['url']:
+        try:
+            counts = parsers.parse_counts(fetch(it['url']))
+        except Exception:  # noqa: BLE001 - counts are a bonus
+            counts = {}
+        new = ['%s (%d개)' % (x, counts[x]) if x in counts else x for x in new]
+        had = ['%s (%d개)' % (x, counts[x]) if x in counts else x for x in had]
     lines = ['[%s] %s' % (label, it['name'][:200]), '가격: ' + it['price'],
              '❤️ 신규 : ' + (', '.join(new) if new else '(사이즈 정보 없음)')]
     # every message has the same lines; '-' when a line has nothing (✅ for a whole restock or a new item)
@@ -301,6 +309,8 @@ def foret_items(url):
             if it['id'] not in seen:
                 seen.add(it['id'])
                 it['page'] = n
+                # the link's "&current_category" was read as the HTML entity &curren; (¤): put it back
+                it['url'] = it['url'].replace('\u00a4t_category', '&current_category')
                 items.append(it)
     # a partial read would make the missing items look new later, so fail the shop instead
     if len(items) < 0.9 * int(first.get('total') or 0):
