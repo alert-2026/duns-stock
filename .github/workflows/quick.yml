@@ -1,5 +1,6 @@
-# Cuddly Bunny and Mini Couple Shot about every 20 seconds, sizes included (samee asked on 10/20: both restock in
-# between). fast.yml skips these two and check.yml only keeps their record, so nothing is alerted twice.
+# Shops samee watches most closely, about every 20 seconds with sizes: Cuddly Bunny + Mini Couple Shot (asked 10/20)
+# and Gurm (asked 10/21). Each group is its own job running side by side. fast.yml skips these shops and check.yml
+# only keeps their record, so nothing is alerted twice.
 name: quick
 on:
   schedule:
@@ -12,32 +13,41 @@ jobs:
   loop:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # lists ~4s + 60 product pages for sizes (this season's first) ~10s
+          - group: cc
+            shops: cuddlybunny,coupleshot
+          # lists ~9s (Duns + NEW pages) + 60 product pages ~9s
+          - group: gurm
+            shops: gurm,gurmnew
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      STATE_FILE: state-quick.json
+      STATE_FILE: state-quick-${{ matrix.group }}.json
     steps:
       - uses: actions/checkout@v4
       - name: Restore state
         uses: actions/cache/restore@v4
         with:
-          path: state-quick.json
-          key: duns-quick-${{ github.run_id }}
-          restore-keys: duns-quick-
+          path: state-quick-${{ matrix.group }}.json
+          key: duns-q-${{ matrix.group }}-${{ github.run_id }}
+          restore-keys: duns-q-${{ matrix.group }}-
       - name: Check every 20 seconds
         run: |
           end=$((SECONDS + 50*60))
           while [ $SECONDS -lt $end ]; do
             start=$SECONDS
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
-            # lists of both shops (~4s) plus 60 product pages for sizes, this season's first (~10s)
-            ONLY_SHOPS=cuddlybunny,coupleshot ROTATE_SIZE_SHOPS=cuddlybunny,coupleshot timeout 90 python3 check_stock.py || echo "check stopped early (exit $?)"
+            ONLY_SHOPS=${{ matrix.shops }} ROTATE_SIZE_SHOPS=${{ matrix.shops }} timeout 90 python3 check_stock.py || echo "check stopped early (exit $?)"
             wait=$((20 - (SECONDS - start))); [ $wait -lt 3 ] && wait=3
             sleep $wait
           done
       - name: Save state
-        if: ${{ always() && hashFiles('state-quick.json') != '' }}
+        if: ${{ always() && hashFiles(format('state-quick-{0}.json', matrix.group)) != '' }}
         uses: actions/cache/save@v4
         with:
-          path: state-quick.json
-          key: duns-quick-${{ github.run_id }}
+          path: state-quick-${{ matrix.group }}.json
+          key: duns-q-${{ matrix.group }}-${{ github.run_id }}

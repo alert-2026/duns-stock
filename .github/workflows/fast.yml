@@ -35,11 +35,11 @@ jobs:
             git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_stock.py parsers.py || true
             # every check reads all shops (samee asked on 10/17 for every shop at about 35 seconds)
             ONLY_SHOPS=
-            ROTATE_SIZE_SHOPS=gurm,gurmnew
+            ROTATE_SIZE_SHOPS=
             # Present Project has only a few items with options: read all of them every check
             SIZE_EVERY_SHOPS=presentproject
-            # Cuddly Bunny and Mini Couple Shot have their own 20-second loop (quick.yml, samee asked on 10/20)
-            SKIP_SHOPS=cuddlybunny,coupleshot ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS SIZE_EVERY_SHOPS=$SIZE_EVERY_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
+            # Cuddly Bunny, Mini Couple Shot (10/20) and Gurm (10/21) have their own 20-second loops in quick.yml
+            SKIP_SHOPS=cuddlybunny,coupleshot,gurm,gurmnew ONLY_SHOPS=$ONLY_SHOPS ROTATE_SIZE_SHOPS=$ROTATE_SIZE_SHOPS SIZE_EVERY_SHOPS=$SIZE_EVERY_SHOPS timeout 120 python3 check_stock.py || echo "check stopped early (exit $?)"
             # start a check every 35 seconds; never less than 5s apart
             wait=$((35 - (SECONDS - start))); [ $wait -lt 5 ] && wait=5
             sleep $wait
