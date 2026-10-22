@@ -33,7 +33,7 @@ SHOPS = [
     ('gurm', '구름', 'https://gurm.kr/category/duns-sweden/70/', 'cafe24', False),
     # Gurm sometimes lists new Duns items only under NEW at first (whole shop, so Duns items are picked out)
     ('gurmnew', '구름', 'https://gurm.kr/category/new/458/', 'cafe24', False),
-    ('cuddlybunny', '커들리버니', 'https://cuddlybunny.co.kr/category/duns-sweden/72', 'cafe24', False),
+    ('cuddlybunny', '커들리버니', 'https://cuddlybunny.co.kr/product/list.html?cate_no=181', 'cafe24', False),  # DS_26 AUTUMN only (samee, 10/22)
     ('pulev', '풀레브', 'https://pulev.co.kr/category/duns%EB%8D%98%EC%8A%A4/620/', 'cafe24', False),
     ('babybubble', '베이비버블', 'https://babybubble.co.kr/category/duns/179/', 'cafe24', False),
     ('bbambam', '빰밤', 'http://www.bbambam.com/m/product_list.html?mcode=083&type=M&xcode=034', 'bbambam', False),
