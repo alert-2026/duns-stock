@@ -464,11 +464,17 @@ def rotate_sizes(results, state, shops, batch=60):
             if 'sizes' in old and 'sizes' not in it:
                 it['sizes'], it['sizes_out'] = old['sizes'], old.get('sizes_out', [])
                 it['size_checked'] = old.get('size_checked', '')
-            if not it['soldout']:
+            # samee's lines are read even when the list says sold out: a cancelled size can come back and sell
+            # again within seconds, and the list pages (cached) show it later than the product page
+            if not it['soldout'] or re.search(PRIORITY, it['name'], flags=re.I):
                 jobs.append(it)
     jobs.sort(key=lambda it: it.get('size_checked', ''))
     first = [it for it in jobs if re.search(PRIORITY, it['name'], flags=re.I)]
     jobs = [it for it in jobs if not re.search(PRIORITY, it['name'], flags=re.I)]
+    # all of them on sale, and the sold-out ones in turn (Gurm has ~60), so a check stays near 20s
+    first = [it for it in first if not it['soldout']] + [it for it in first if it['soldout']][:30]
+    # keep the pages opened per check about the same: the priority items take the place of others
+    batch = max(20, batch - len(first))
     # this season's items sell out and come back most often: two thirds of each batch goes to them
     season = [it for it in jobs if re.search(CURRENT_SEASON, it['name'], flags=re.I)]
     picked = season[:batch * 2 // 3]
@@ -483,11 +489,26 @@ def rotate_sizes(results, state, shops, batch=60):
             found = None
         if found:
             it['sizes'], it['sizes_out'] = found
+            if it['soldout'] and found[0]:
+                # on sale on its own page: main() double-checks this before calling it a restock
+                it['soldout'] = False
         it['size_checked'] = now
 
+    # Gurm lists the same item under Duns and NEW: open each page once
+    by_url = {}
+    for it in jobs:
+        by_url.setdefault((urllib.parse.urlsplit(it['url']).netloc, it['id']), []).append(it)
+
+    def per_url(group):
+        one(group[0])
+        for it in group[1:]:
+            for f in ('sizes', 'sizes_out', 'soldout', 'size_checked'):
+                if f in group[0]:
+                    it[f] = group[0][f]
+
     with ThreadPoolExecutor(max_workers=8) as ex:
-        list(ex.map(one, jobs))
-    return len(jobs)
+        list(ex.map(per_url, by_url.values()))
+    return len(by_url)
 
 
 def main():
@@ -578,7 +599,7 @@ def main():
             elif old.get('soldout') and not it['soldout'] and not learn_only:
                 changes.append(('재입고', names[key], it))
                 n_changes += 1
-            elif 'sizes' in old and not learn_only and set(it.get('sizes', [])) - set(old['sizes']):
+            elif 'sizes' in old and not learn_only and not it['soldout'] and set(it.get('sizes', [])) - set(old['sizes']):
                 # a size came back on an item that was already partly on sale
                 it['new_sizes'] = [x for x in it['sizes'] if x not in old['sizes']]
                 changes.append(('사이즈 재입고', names[key], it))
