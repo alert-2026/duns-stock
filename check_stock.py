@@ -272,10 +272,22 @@ def more_pages(page, url, kind, first, key):
         # Mini Couple Shot's 19 pages in ~5s instead of ~24s)
         with ThreadPoolExecutor(max_workers=6) as ex:
             pages = dict(zip(range(2, last + 1), ex.map(get, [page_url(n) for n in range(2, last + 1)])))
-    for n in range(2, last + 1):
+    n = 1
+    while n < MAX_PAGES:
+        n += 1
+        if n not in pages:
+            if n > last and m and kind != 'sixshop':
+                # Cafe24 only links a window of pages (1-5 of Cuddly Bunny's 8+), so keep going past it,
+                # one page to check, then side by side while there are more
+                batch = [n] if n == last + 1 else list(range(n, min(MAX_PAGES, n + 5) + 1))
+                with ThreadPoolExecutor(max_workers=6) as ex:
+                    pages.update(zip(batch, ex.map(get, [page_url(k) for k in batch])))
+            elif n > last and kind == 'sixshop':
+                break
+            else:
+                pages[n] = get(page_url(n))
         u = page_url(n)
-        html = pages[n] if n in pages else get(u)
-        got = [it for it in parse(kind, html, u) if it['id'] not in seen]
+        got = [it for it in parse(kind, pages[n], u) if it['id'] not in seen]
         if not got:  # past the last page (some shops repeat page 1 there)
             break
         for it in got:
@@ -431,6 +443,9 @@ def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
     return len(jobs)
 
 
+# lines samee watches most closely (10/22): their sizes are read on every quick check, not in turn
+PRIORITY = (r'mother\s*earth|마더\s*어스|sheep|양떼|clover\W*(black|brown)|(black|brown)\W*clover'
+            r'|클로버\W*(블랙|브라운)|(블랙|브라운)\W*클로버')
 CURRENT_SEASON = r'26AU|FALL26|AW26'
 
 
@@ -452,12 +467,14 @@ def rotate_sizes(results, state, shops, batch=60):
             if not it['soldout']:
                 jobs.append(it)
     jobs.sort(key=lambda it: it.get('size_checked', ''))
+    first = [it for it in jobs if re.search(PRIORITY, it['name'], flags=re.I)]
+    jobs = [it for it in jobs if not re.search(PRIORITY, it['name'], flags=re.I)]
     # this season's items sell out and come back most often: two thirds of each batch goes to them
     season = [it for it in jobs if re.search(CURRENT_SEASON, it['name'], flags=re.I)]
     picked = season[:batch * 2 // 3]
     chosen = {id(it) for it in picked}
     rest = [it for it in jobs if id(it) not in chosen]
-    jobs = picked + rest[:batch - len(picked)]
+    jobs = first + picked + rest[:batch - len(picked)]
 
     def one(it):
         try:
@@ -519,7 +536,8 @@ def main():
         learn_only = key in set(filter(None, os.environ.get('LEARN_ONLY_SHOPS', '').split(',')))
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
-        quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
+        # the same goes for pages past the last one read before (10/22: Cuddly Bunny's pages 6-23 came into view)
+        seen_pages = max([v.get('page', 1) for v in known.values() if isinstance(v, dict)] or [1])
         if kinds[key] in ('cafe24', 'littleluna'):
             # Cafe24 caches each list page on its own and the order shifts, so the same item can look sold out
             # on one page and on sale on another: when the list disagrees with what we knew, ask its own page
@@ -537,7 +555,7 @@ def main():
                     it['sizes'], it['sizes_out'] = found
         # some shops list an item as on sale while every size is sold out: that can't be bought,
         # so items about to be alerted get their sizes read first (side by side, at most 40 per shop)
-        maybe = [it for it in items if not it['soldout'] and not (quiet and it.get('page', 1) > 1)
+        maybe = [it for it in items if not it['soldout'] and not it.get('page', 1) > seen_pages
                  and (known.get(it['id']) is None or known[it['id']].get('soldout'))]
         with ThreadPoolExecutor(max_workers=8) as ex:
             found_all = list(ex.map(get_sizes, maybe[:40])) + [None] * len(maybe[40:])
@@ -552,7 +570,7 @@ def main():
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
-                if (quiet and it.get('page', 1) > 1) or learn_only:
+                if it.get('page', 1) > seen_pages or learn_only:
                     pass
                 elif not it['soldout']:
                     changes.append(('신상', names[key], it))
