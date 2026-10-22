@@ -1,0 +1,4 @@
+2026-10-22 11:02:07.120539+09:00
+slots 104 free ['2026-10-22 12:00', '2026-10-22 14:15', '2026-10-22 16:45', '2026-10-22 17:00', '2026-10-23 15:00', '2026-10-25 14:30']
+visible False
+{"bizItems": [{"bizItemId": "8129134", "isImp": true, "isClosedBooking": false, "bookingAvailableCode": "RI01", "bookableSettingJson": {"isPaused": false, "isUseOpen": true, "openDateTime": "2026-10-20T11:00:00+09:00", "isOpened": true}}]}
