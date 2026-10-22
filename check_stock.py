@@ -562,8 +562,7 @@ def main():
         learn_only = key in set(filter(None, os.environ.get('LEARN_ONLY_SHOPS', '').split(',')))
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
-        # the same goes for pages past the last one read before (10/22: Cuddly Bunny's pages 6-23 came into view)
-        seen_pages = max([v.get('page', 1) for v in known.values() if isinstance(v, dict)] or [1])
+        quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
         if kinds[key] in ('cafe24', 'littleluna'):
             # Cafe24 caches each list page on its own and the order shifts, so the same item can look sold out
             # on one page and on sale on another: when the list disagrees with what we knew, ask its own page
@@ -581,7 +580,7 @@ def main():
                     it['sizes'], it['sizes_out'] = found
         # some shops list an item as on sale while every size is sold out: that can't be bought,
         # so items about to be alerted get their sizes read first (side by side, at most 40 per shop)
-        maybe = [it for it in items if not it['soldout'] and not it.get('page', 1) > seen_pages
+        maybe = [it for it in items if not it['soldout'] and not (quiet and it.get('page', 1) > 1)
                  and (known.get(it['id']) is None or known[it['id']].get('soldout'))]
         with ThreadPoolExecutor(max_workers=8) as ex:
             found_all = list(ex.map(get_sizes, maybe[:40])) + [None] * len(maybe[40:])
@@ -596,7 +595,7 @@ def main():
             old = known.get(it['id'])
             # only things that can be bought now are alerted (samee buys restocks / cancellations)
             if old is None:
-                if it.get('page', 1) > seen_pages or learn_only:
+                if (quiet and it.get('page', 1) > 1) or learn_only:
                     pass
                 elif not it['soldout']:
                     changes.append(('신상', names[key], it))
