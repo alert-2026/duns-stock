@@ -411,10 +411,7 @@ def telegram_send(text):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot', 'foretforet'}
-# imweb shops whose sizes are cheap to read (one small request each): read on every regular check, not every 5 min
-# (Mimilemonde: cancelled sizes go back on sale at set times, samee 10/22)
-SIZE_EVERY_DEFAULT = {'mimilemonde'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
 
 
 def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
@@ -534,8 +531,6 @@ def main():
         log('size scan: %d product pages' % scan_sizes(results, state))
     # small shops whose sizes are cheap to read: every item, every check
     every = set(filter(None, os.environ.get('SIZE_EVERY_SHOPS', '').split(',')))
-    if os.environ.get('SIZE_SCAN') != '1':
-        every |= SIZE_EVERY_DEFAULT
     if every:
         log('sizes every check: %d items' % scan_sizes(results, state, every))
     rotate = set(filter(None, os.environ.get('ROTATE_SIZE_SHOPS', '').split(',')))
