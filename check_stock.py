@@ -7,6 +7,7 @@ Standard library only. The Telegram token is read from telegram.json and never p
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -143,9 +144,18 @@ def fetch_rendered(url, key):
     p = subprocess.Popen([CHROME, '--headless=new', '--disable-gpu', '--no-first-run',
                           '--no-default-browser-check', '--user-data-dir=' + profile,
                           '--user-agent=' + UA, '--virtual-time-budget=15000', '--dump-dom', url],
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+
+    def kill():
+        # Chrome's helper processes keep stdout open, so killing only the parent can leave the read
+        # waiting forever (the Mac hung 10/20-10/22 on Bling and On): stop the whole process group
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            pass
+
     # headless Chrome often keeps running after dumping the DOM, so stop reading at </html>
-    timer = threading.Timer(45, p.kill)
+    timer = threading.Timer(45, kill)
     timer.start()
     out = b''
     try:
@@ -155,7 +165,7 @@ def fetch_rendered(url, key):
                 break
     finally:
         timer.cancel()
-        p.kill()
+        kill()
         p.wait()
     return out.decode('utf-8', errors='replace')
 
