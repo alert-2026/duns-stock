@@ -14,7 +14,8 @@ jobs:
       CHROME_PATH: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
-      - run: python3 check_stock.py --size-test || true
+      - run: |
+          (HOT_SECONDS=30 TELEGRAM_TOKEN= TELEGRAM_CHAT_ID= python3 watch_items.py; cat state-hot.json; python3 -c "import watch_items as w; print(w.read(w.WATCH[0][1]))") > log.txt 2>&1 || true
       - name: Publish result
         run: |
           cp log.txt /tmp/size-test.txt; cp -r pages /tmp/pages || true
