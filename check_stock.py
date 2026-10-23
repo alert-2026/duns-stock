@@ -454,8 +454,9 @@ def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
 
 
 # lines samee watches most closely (10/22): their sizes are read on every quick check, not in turn
-PRIORITY = (r'mother\s*earth|마더\s*[어얼]스|sheep|양\s*떼|쉽\s*트릭|clover\W*(black|brown)|(black|brown)\W*clover'
-            r'|클로버\W*(블랙|브라운)|(블랙|브라운)\W*클로버')
+# the colour can come later in the name ("Clover Long Sleeve Top - Black" at Cuddly Bunny), so match anywhere
+PRIORITY = (r'mother\s*earth|마더\s*[어얼]스|sheep|양\s*떼|쉽\s*트릭|clover.*\b(black|brown)\b|\b(black|brown)\b.*clover'
+            r'|클로버.*(블랙|브라운)|(블랙|브라운).*클로버')
 CURRENT_SEASON = r'26AU|FALL26|AW26'
 
 
@@ -482,7 +483,12 @@ def rotate_sizes(results, state, shops, batch=60):
     first = [it for it in jobs if re.search(PRIORITY, it['name'], flags=re.I)]
     jobs = [it for it in jobs if not re.search(PRIORITY, it['name'], flags=re.I)]
     # all of them on sale, and the sold-out ones in turn (Gurm has ~60), so a check stays near 20s
-    first = [it for it in first if not it['soldout']] + [it for it in first if it['soldout']][:30]
+    sold = {}
+    for it in first:
+        if it['soldout']:
+            sold.setdefault(it['url'].split('/')[2], []).append(it)
+    # up to 30 per shop, so Cuddly Bunny's ~27 aren't crowded out by Mini Couple Shot's
+    first = [it for it in first if not it['soldout']] + [it for group in sold.values() for it in group[:30]]
     # keep the pages opened per check about the same: the priority items take the place of others
     batch = max(20, batch - len(first))
     # this season's items sell out and come back most often: two thirds of each batch goes to them
