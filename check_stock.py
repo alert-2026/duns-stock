@@ -454,7 +454,7 @@ def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
 
 
 # lines samee watches most closely (10/22): their sizes are read on every quick check, not in turn
-PRIORITY = (r'mother\s*earth|마더\s*어스|sheep|양떼|clover\W*(black|brown)|(black|brown)\W*clover'
+PRIORITY = (r'mother\s*earth|마더\s*[어얼]스|sheep|양\s*떼|쉽\s*트릭|clover\W*(black|brown)|(black|brown)\W*clover'
             r'|클로버\W*(블랙|브라운)|(블랙|브라운)\W*클로버')
 CURRENT_SEASON = r'26AU|FALL26|AW26'
 
