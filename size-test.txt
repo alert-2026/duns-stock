@@ -1,0 +1,1 @@
+{"https://cuddlybunny.co.kr/product/detail.html?product_no=2434": {"sizes": [], "on_sale": false}}{'url': 'https://cuddlybunny.co.kr/product/detail.html?product_no=2434', 'id': '2434', 'name': '[Duns Sweden] 던스스웨덴 Mother Earth Hood Suit - Black - cuddlybunny', 'price': '96,000원', 'sizes': [], 'sizes_out': ['74/80 (9-12m)', '86/92 (1-2y)'], 'on_sale': False}
