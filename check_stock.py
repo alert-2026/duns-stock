@@ -557,6 +557,7 @@ def main():
     kinds = {s[0]: s[3] for s in SHOPS}
     changes = []
     summary = []
+    seen_now = {}  # (shop name, id) -> None if sold out now, else its on-sale sizes (True if unknown)
     for key, items, err in results:
         if err:
             log('SKIP %s (%s): %s' % (key, names[key], err))
@@ -620,6 +621,7 @@ def main():
                 changes.append(('사이즈 재입고', names[key], it))
                 n_changes += 1
             known[it['id']] = {k: v for k, v in dict(it, last_seen=now).items() if k != 'new_sizes'}
+            seen_now[(names[key], it['id'])] = None if it['soldout'] else set(it['sizes']) if 'sizes' in it else True
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
 
     # ALERT_LABELS: the 5-minute size loop only sends [사이즈 재입고]; the 1-minute loop sends the rest
@@ -630,6 +632,13 @@ def main():
     # Gurm's Duns and NEW lists are cached separately, so one restock can show up a run apart on each:
     # don't send the same alert for the same product again within 5 minutes
     recent = {k: t for k, t in state.get('_recent', {}).items() if time.time() - t < 300}
+    # but once we've seen it sold out again (the item, or that size), a new release is a new chance: let it through
+    # (samee asked on 10/27: Cuddly Bunny sizes sold in seconds and came back two minutes later)
+    for k in list(recent):
+        label, shop, pid, sizes = k.split('|', 3)
+        now_on = seen_now.get((shop, pid), True)
+        if now_on is None or (isinstance(now_on, set) and sizes and set(sizes.split(',')) - now_on):
+            del recent[k]
     fresh = []
     for c in changes:
         label, shop, it = c
