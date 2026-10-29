@@ -56,6 +56,10 @@ SHOPS = [
     # Soor Ploom-only shops samee added the same day: Idee Shop (Korea) and Junior Edition (UK)
     ('ideeshop', '아이디샵 · 수어플룸', 'https://www.ideeshop.kr/soorploom', 'sixshop', True),
     ('junioredition', '주니어에디션(영국) · 수어플룸', 'https://www.junioredition.com/collections/soor-ploom', 'shopify', False),
+    # more Korean Soor Ploom shops found the same day
+    ('mariecloset', '마리클로젯 · 수어플룸', 'https://mylittlecloset.co.kr/category/soor-ploom/168/', 'cafe24', False),
+    ('kurate', '큐레이트 · 수어플룸', 'https://kurate.co.kr/collections/soor-ploom', 'shopify', False),
+    ('mnklsoor', '엠엔케이엘 · 수어플룸', 'https://mnkl.co.kr/category/soor-ploom/228/', 'cafe24', False),
     # not a Duns shop: samee also wants Present Project's own products (whole shop)
     ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
     # overseas shops samee shared on 2026-10-20 (the starred ones); all Shopify, sizes included
@@ -70,8 +74,8 @@ SHOPS = [
 # Shopify prices are in the shop's own money
 CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD', 'varabarn': 'CAD', 'thegreencrib': 'USD',
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR',
-            'junioredition': 'GBP'}
-NOT_DUNS = {'presentproject', 'checkanddotsoor', 'ideeshop', 'junioredition'}  # alerts without the 던스스웨덴 label
+            'junioredition': 'GBP', 'kurate': 'KRW'}
+NOT_DUNS = {'presentproject', 'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # alerts without the 던스스웨덴 label
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -353,7 +357,9 @@ def check_shop(shop):
             items, page = shopify_items(url), ''
             cur = CURRENCY.get(key, 'SEK')
             for it in items:
-                if it['price'] and cur != 'SEK':
+                if it['price'] and cur == 'KRW':
+                    it['price'] = '%s원' % it['min_price'].split('.')[0]
+                elif it['price'] and cur != 'SEK':
                     it['price'] = '%s %s' % (it['min_price'], cur)
         elif kind == 'foret':
             items, page = foret_items(url), ''
@@ -427,7 +433,7 @@ def telegram_send(text):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
 
 
 def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
