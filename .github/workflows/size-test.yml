@@ -6,15 +6,19 @@ on:
     branches: [size-test]
 permissions:
   contents: write
+  actions: read
 jobs:
   sizes:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     env:
       CHROME_PATH: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
-      - run: python3 check_stock.py --size-test || true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: python3 diag.py > log.txt 2> err.txt || true; cat err.txt; cat err.txt >> log.txt
       - name: Publish result
         run: |
           cp log.txt /tmp/size-test.txt; cp -r pages /tmp/pages || true
