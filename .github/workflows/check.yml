@@ -23,6 +23,8 @@ jobs:
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SOOR_TELEGRAM_TOKEN: ${{ secrets.SOOR_TELEGRAM_TOKEN }}
+      SOOR_TELEGRAM_CHAT_ID: ${{ secrets.SOOR_TELEGRAM_CHAT_ID }}
       CHROME_PATH: /usr/bin/google-chrome
       SIZE_SCAN: "1"
       SKIP_SHOPS: presentproject  # checked by fast.yml

@@ -75,7 +75,8 @@ SHOPS = [
 CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD', 'varabarn': 'CAD', 'thegreencrib': 'USD',
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR',
             'junioredition': 'GBP', 'kurate': 'KRW'}
-NOT_DUNS = {'presentproject', 'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # alerts without the 던스스웨덴 label
+SOOR = {'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # sent by the Soor Ploom bot
+NOT_DUNS = {'presentproject'} | SOOR  # alerts without the 던스스웨덴 label
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -392,12 +393,39 @@ def save_state(state):
     os.replace(tmp, STATE)
 
 
-def telegram_send(text):
+def soor_chat_ids(token):
+    """Chats that wrote to (or added) the Soor Ploom bot lately, for when its chat id isn't set."""
+    try:
+        with urllib.request.urlopen('https://api.telegram.org/bot%s/getUpdates' % token, timeout=30) as r:
+            updates = json.load(r).get('result', [])
+    except Exception as e:  # noqa: BLE001 - the URL holds the token, so only the type is logged
+        log('telegram getUpdates failed: %s' % type(e).__name__)
+        return []
+    ids = []
+    for u in updates:
+        for v in u.values():
+            chat = v.get('chat') if isinstance(v, dict) else None
+            if chat and str(chat['id']) not in ids:
+                ids.append(str(chat['id']))
+    return ids
+
+
+def telegram_send(text, soor=False):
     conf = load_json(TG_CONF, {})
     # GitHub Actions passes these as secrets; on the Mac they come from telegram.json
     token = (os.environ.get('TELEGRAM_TOKEN') or conf.get('token') or '').strip()
     # several people can get the alerts: chat ids separated by commas, samee's own first
     chat_ids = [x.strip() for x in str(os.environ.get('TELEGRAM_CHAT_ID') or conf.get('chat_id') or '').split(',') if x.strip()]
+    # Soor Ploom alerts go to their own bot's chat (@bsma_bot, samee asked 10/29); until it is set up they
+    # keep coming to the Duns bot so nothing is missed
+    soor_token = (os.environ.get('SOOR_TELEGRAM_TOKEN') or conf.get('soor_token') or '').strip()
+    if soor and soor_token:
+        ids = [x.strip() for x in str(os.environ.get('SOOR_TELEGRAM_CHAT_ID') or conf.get('soor_chat_id') or '').split(',')
+               if x.strip()] or soor_chat_ids(soor_token)
+        if ids:
+            token, chat_ids = soor_token, ids
+        else:
+            log('soor bot has no chat yet; sent with the Duns bot')
     if not token or not chat_ids:
         log('telegram not configured; message not sent')
         return False
@@ -687,7 +715,7 @@ def main():
         sent = True
         for shop, blocks in by_shop.items():
             head = ('🔔 %s (%s, KST)' if shop_keys[shop] in NOT_DUNS else '🔔 %s · 던스스웨덴 (%s, KST)') % (shop, when)
-            sent = telegram_send('\n\n'.join([head] + blocks)) and sent
+            sent = telegram_send('\n\n'.join([head] + blocks), soor=shop_keys[shop] in SOOR) and sent
         log('changes=%d sent=%s' % (len(changes), sent))
         for label, shop, it in changes:
             log('  %s %s %s %s' % (label, shop, it['id'], it['name'][:40]))
@@ -720,5 +748,6 @@ if __name__ == '__main__':
                         pass
     elif len(sys.argv) > 1 and sys.argv[1] == '--test-message':
         print('sent' if telegram_send('던스스웨덴 재고 알림이 연결됐어요') else 'failed')
+        print('soor sent' if telegram_send('수어플룸 재고 알림이 연결됐어요', soor=True) else 'soor failed')
     else:
         main()

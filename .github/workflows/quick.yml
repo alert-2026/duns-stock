@@ -26,6 +26,8 @@ jobs:
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SOOR_TELEGRAM_TOKEN: ${{ secrets.SOOR_TELEGRAM_TOKEN }}
+      SOOR_TELEGRAM_CHAT_ID: ${{ secrets.SOOR_TELEGRAM_CHAT_ID }}
       STATE_FILE: state-quick-${{ matrix.group }}.json
     steps:
       - uses: actions/checkout@v4
