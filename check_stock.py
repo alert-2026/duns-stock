@@ -51,6 +51,8 @@ SHOPS = [
     ('official', '던스 공식몰', 'https://shopdunssweden.se', 'shopify', False),
     ('mnkl', '엠엔케이엘', 'https://mnkl.co.kr/category/duns-sweden/254/', 'cafe24', False),
     ('happylittleattic', '해피리틀애틱', 'https://happylittleattic.com/collections/duns-sweden', 'shopify', False),
+    # not Duns: samee also wants Soor Ploom (asked 10/29); of the Korean Duns shops only Check & Dot has its own category
+    ('checkanddotsoor', '체크앤도트 · 수어플룸', 'https://checkanddot.com/category/soor-ploom/130/', 'cafe24', False),
     # not a Duns shop: samee also wants Present Project's own products (whole shop)
     ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
     # overseas shops samee shared on 2026-10-20 (the starred ones); all Shopify, sizes included
@@ -65,7 +67,7 @@ SHOPS = [
 # Shopify prices are in the shop's own money
 CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD', 'varabarn': 'CAD', 'thegreencrib': 'USD',
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR'}
-NOT_DUNS = {'presentproject'}
+NOT_DUNS = {'presentproject', 'checkanddotsoor'}  # alerts without the 던스스웨덴 label
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -421,7 +423,7 @@ def telegram_send(text):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
 
 
 def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
