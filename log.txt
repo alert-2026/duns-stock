@@ -1,0 +1,15 @@
+[36;1m  ONLY_SHOPS=cuddlybunny,coupleshot ROTATE_SIZE_SHOPS=cuddlybunny,coupleshot timeout 90 python3 check_stock.py || echo "check stopped early (exi
+2026-10-29 11:45:37 changes=1 sent=True
+2026-10-29 11:45:37   재입고 커들리버니 2499 [Duns Sweden] 던스스웨덴 Mother Earth Dungare
+11:45:37 count 117
+11:46:06 count 119
+11:46:55 count 118
+11:47:19 count 119
+11:47:43 count 118
+11:48:06 count 119
+11:48:30 count 117
+11:48:54 count 118
+11:49:17 count 117
+11:49:42 count 119
+11:50:30 count 117
+11:51:20 count 119
