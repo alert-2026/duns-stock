@@ -1,21 +1,21 @@
-import json, re, subprocess
-out = []
-UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'
-def curl(url, name):
-    r = subprocess.run(['curl', '-sSL', '-A', UA, '-o', f'/tmp/res/{name}', '-w', '%{http_code} %{url_effective}', url], capture_output=True, text=True)
-    out.append(f'{name}: {r.stdout} {r.stderr[:200]}')
-    try:
-        return r.stdout.split(' ', 1)[1], open(f'/tmp/res/{name}', errors='replace').read()
-    except Exception:
-        return '', ''
-final, html = curl('https://naver.me/xhPT0QGG', 'naverme.html')
-ids = set(re.findall(r'place/(\d+)', final + html)) | set(re.findall(r'pinId=(\d+)', final)) | set(re.findall(r'"id":"(\d{6,})"', html)[:3])
-out.append('place ids ' + str(ids))
-for pid in list(ids)[:3]:
-    for tab in ['home', 'booking', 'ticket']:
-        _, h = curl(f'https://m.place.naver.com/place/{pid}/{tab}', f'place-{pid}-{tab}.html')
-        out.append(f'{pid} {tab} bizes: ' + str(sorted(set(re.findall(r'booking/(\d+)/bizes/(\d+)', h)))))
-        out.append(f'{pid} {tab} bookingBusinessId: ' + str(sorted(set(re.findall(r'"bookingBusinessId":"?(\d+)', h)))))
-for h in [open(f) .read() for f in __import__('glob').glob('/tmp/res/place-*')]:
-    out.append('booking urls: ' + str(sorted(set(re.findall(r'https?://[a-z.]*booking\.naver\.com[^"\\ ]{0,120}', h)))[:20]))
-open('/tmp/res/probe.txt', 'w').write('\n'.join(out) + '\n')
+import json, datetime, importlib.util, re, subprocess
+spec = importlib.util.spec_from_file_location('c', 'check_showroom.py'); c = importlib.util.module_from_spec(spec); spec.loader.exec_module(c)
+c.BIZ = '1617276'; c.PAGE = 'https://m.booking.naver.com/booking/5/bizes/1617276'
+out = [str(datetime.datetime.now(c.KST))]
+r = subprocess.run(['curl', '-sSL', '-A', c.UA, c.PAGE + '/items/8170337'], capture_output=True, text=True)
+open('/tmp/res/item.html', 'w').write(r.stdout)
+out.append('business ' + json.dumps(c.gql('business', 'query business($input: BusinessParams) { business(input: $input) { businessId name businessTypeId serviceName } }', {'input': {'businessId': c.BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}), ensure_ascii=False))
+items = c.gql('bizItems', 'query bizItems($input: BizItemsParams) { bizItems(input: $input) { bizItemId name desc isImp isClosedBooking bookingAvailableCode bizItemType bookingTimeUnitCode minBookingCount maxBookingCount bookableSettingJson startDate endDate } }', {'input': {'businessId': c.BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}})
+out.append('items ' + json.dumps(items, ensure_ascii=False)[:6000])
+now = datetime.datetime.now(c.KST)
+for it in (items.get('bizItems') or [])[:12]:
+    iid = str(it['bizItemId'])
+    for fixed in [True, False]:
+        q = 'query h($scheduleParams: ScheduleParams) { schedule(input: $scheduleParams) { bizItemSchedule { hourly { unitStartTime unitStock unitBookingCount isUnitSaleDay isUnitBusinessDay } daily { date stock bookingCount isSaleDay isBusinessDay } } } }'
+        d = c.gql('h', q, {'scheduleParams': {'businessTypeId': 5, 'businessId': c.BIZ, 'bizItemId': iid, 'startDateTime': now.strftime('%Y-%m-%dT00:00:00'), 'endDateTime': (now + datetime.timedelta(days=60)).strftime('%Y-%m-%dT23:59:59'), 'fixedTime': fixed, 'includesHolidaySchedules': True}})
+        s = (d.get('schedule') or {}).get('bizItemSchedule') or {}
+        h = s.get('hourly') or []
+        free = [x['unitStartTime'][:16] for x in h if (x.get('unitStock') or 0) > (x.get('unitBookingCount') or 0) and x.get('isUnitSaleDay') is not False]
+        out.append(f'{iid} {it.get("name")} fixed={fixed} hourly {len(h)} booked {sum(x.get("unitBookingCount") or 0 for x in h)} free {len(free)} {free[:30]}')
+        out.append('  sample ' + json.dumps(h[:3], ensure_ascii=False) + ' daily ' + json.dumps((s.get('daily') or [])[:5], ensure_ascii=False))
+open('/tmp/res/probe.txt', 'w').write('\n'.join(out) + '\n' + '\n'.join(c.LOG))
