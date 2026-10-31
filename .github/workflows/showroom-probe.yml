@@ -1,4 +1,4 @@
-# One-off: checks which booking queries work, so the showroom check can ask for open slots.
+# One-off: finds a Naver booking page from a naver.me link and reads what it offers.
 name: showroom-probe
 on:
   push:
@@ -13,10 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           mkdir -p /tmp/res
-          UA="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
-          base=$(curl -sSL -A "$UA" https://m.booking.naver.com/booking/12/bizes/1638569 | grep -oE '/mobile/static/js/main\.[a-z0-9]+\.js' | head -1)
-          curl -sSL -A "$UA" -o /tmp/main.js "https://m.booking.naver.com$base"
-          python3 probe.py
+          python3 probe.py || true
           cd /tmp/res && git init -q -b showroom-probe-result && git add -A
           git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm probe
           git -c http.extraheader="AUTHORIZATION: basic $(printf x-access-token:%s "${{ github.token }}" | base64 -w0)" push -qf "https://github.com/${{ github.repository }}" showroom-probe-result

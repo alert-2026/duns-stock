@@ -1,11 +1,19 @@
-import json, datetime, importlib.util
-spec = importlib.util.spec_from_file_location('c', 'check_showroom.py'); c = importlib.util.module_from_spec(spec); spec.loader.exec_module(c)
-out = [str(datetime.datetime.now(c.KST))]
-q = 'query h($scheduleParams: ScheduleParams) { schedule(input: $scheduleParams) { bizItemSchedule { hourly { unitStartTime unitStock unitBookingCount isUnitSaleDay } } } }'
-d = c.gql('h', q, {'scheduleParams': {'businessTypeId': 12, 'businessId': c.BIZ, 'bizItemId': '8129134', 'startDateTime': '2026-10-22T00:00:00', 'endDateTime': '2026-10-25T23:59:59', 'fixedTime': True, 'includesHolidaySchedules': True}})
-h = ((d.get('schedule') or {}).get('bizItemSchedule') or {}).get('hourly') or []
-free = [x['unitStartTime'][:16] for x in h if x['unitStock'] > x['unitBookingCount'] and x.get('isUnitSaleDay') is not False]
-out.append(f'slots {len(h)} free {free}')
-out.append('visible ' + str(c.shop_visible()))
-out.append(json.dumps(c.gql('bizItems', 'query bizItems($input: BizItemsParams) { bizItems(input: $input) { bizItemId isImp isClosedBooking bookingAvailableCode bookableSettingJson } }', {'input': {'businessId': c.BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}), ensure_ascii=False))
-open('/tmp/res/probe.txt', 'w').write('\n'.join(out) + '\n' + '\n'.join(c.LOG))
+import json, re, subprocess
+out = []
+UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'
+def curl(url, name):
+    r = subprocess.run(['curl', '-sSL', '-A', UA, '-o', f'/tmp/res/{name}', '-w', '%{http_code} %{url_effective}', url], capture_output=True, text=True)
+    out.append(f'{name}: {r.stdout} {r.stderr[:200]}')
+    try:
+        return r.stdout.split(' ', 1)[1], open(f'/tmp/res/{name}', errors='replace').read()
+    except Exception:
+        return '', ''
+final, html = curl('https://naver.me/xhPT0QGG', 'naverme.html')
+ids = set(re.findall(r'place/(\d+)', final + html)) | set(re.findall(r'"id":"(\d{6,})"', html)[:3])
+out.append('place ids ' + str(ids))
+for pid in list(ids)[:3]:
+    for tab in ['home', 'booking']:
+        _, h = curl(f'https://m.place.naver.com/place/{pid}/{tab}', f'place-{pid}-{tab}.html')
+        out.append(f'{pid} {tab} bizes: ' + str(sorted(set(re.findall(r'booking/(\d+)/bizes/(\d+)', h)))))
+        out.append(f'{pid} {tab} bookingBusinessId: ' + str(sorted(set(re.findall(r'"bookingBusinessId":"?(\d+)', h)))))
+open('/tmp/res/probe.txt', 'w').write('\n'.join(out) + '\n')
