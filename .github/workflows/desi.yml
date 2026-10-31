@@ -1,0 +1,55 @@
+# Watches 데시디자인's Naver booking page (Duns reform bookings, samee asked on 10/31) and sends a Telegram alert
+# when a day frees up or a new booking item opens. Separate from the stock checks; each run loops for ~50 minutes.
+name: desi
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [check_desi.py, .github/workflows/desi.yml]
+concurrency:
+  group: desi
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: desi-state.json
+          key: desi-${{ github.run_id }}
+          restore-keys: desi-
+      - name: check every 15 seconds
+        run: |
+          publish() {  # copies the log to the desi-status branch so it can be read without opening Actions
+            rm -rf /tmp/pub; mkdir /tmp/pub; cp desi-log.txt desi-state.json /tmp/pub/ 2>/dev/null || true
+            auth=$(git config --get http.https://github.com/.extraheader)
+            (cd /tmp/pub && git init -q -b desi-status && git add -A \
+              && git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "Desi check log" \
+              && git -c http.extraheader="$auth" push -qf "https://github.com/${{ github.repository }}" desi-status) || true
+          }
+          end=$((SECONDS + 50*60)); n=0
+          while [ $SECONDS -lt $end ]; do
+            start=$SECONDS
+            git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_desi.py || true
+            timeout 60 python3 check_desi.py || true
+            n=$((n+1)); [ $n -eq 1 ] && publish
+            wait=$((15 - (SECONDS - start))); [ $wait -lt 1 ] && wait=1
+            sleep $wait
+          done
+          tail -c 200000 desi-log.txt > /tmp/l && mv /tmp/l desi-log.txt; publish
+      - name: Save state
+        if: ${{ always() && hashFiles('desi-state.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: desi-state.json
+          key: desi-${{ github.run_id }}
