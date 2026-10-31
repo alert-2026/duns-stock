@@ -36,7 +36,10 @@ def gql(op, query, variables):
 def biz_items():
     q = ('query bizItems($input: BizItemsParams) { bizItems(input: $input) '
          '{ bizItemId name isImp isClosedBooking bookableSettingJson } }')
-    return gql('bizItems', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}}).get('bizItems') or []
+    d = gql('bizItems', q, {'input': {'businessId': BIZ, 'lang': 'ko', 'projections': 'RESOURCE'}})
+    if not isinstance(d.get('bizItems'), list):
+        raise RuntimeError('item list unreadable')  # a failed read must not look like the item was hidden
+    return d['bizItems']
 
 
 def is_open(item, now):
@@ -93,22 +96,24 @@ def main():
     try:
         state = json.load(open(STATE))
     except (OSError, ValueError):
-        state = {}
+        state = None
+    first = state is None
+    state = state or {}
     now = datetime.datetime.now(KST)
-    items = state.get('_items')
-    # item settings (new items, open times) are re-read once a minute; the days every check
-    if not items or now.timestamp() - state.get('_full', 0) >= 60:
-        items = [{'bizItemId': str(i['bizItemId']), 'name': i.get('name'), 'isImp': i.get('isImp'),
-                  'isClosedBooking': i.get('isClosedBooking'), 'bookableSettingJson': i.get('bookableSettingJson')}
-                 for i in biz_items()]
-        full = now.timestamp()
-    else:
-        full = state.get('_full', 0)
-    if not items:
-        log('no items read; keeping state')
-        return
-    first = not state
-    new_state = {'_items': items, '_full': full}
+    # Naver lists only items the shop shows; on 10/31 the 11월 item was hidden ~30 min after opening even
+    # though most days still had room, so an item coming back into the list is what matters. The list is
+    # read every check (one small query), the days only for listed items.
+    items = [{'bizItemId': str(i['bizItemId']), 'name': i.get('name'), 'isImp': i.get('isImp'),
+              'isClosedBooking': i.get('isClosedBooking'), 'bookableSettingJson': i.get('bookableSettingJson')}
+             for i in biz_items()]
+    listed = {i['bizItemId'] for i in items}
+    names = dict(state.get('_names', {}), **{i['bizItemId']: i.get('name') or '' for i in items})
+    new_state = {'_names': names}
+    for iid, prev in state.items():
+        if not iid.startswith('_') and iid not in listed:
+            new_state[iid] = {'live': False}  # hidden (or gone) for now
+    log('listed', [names[i] for i in listed] or 'none',
+        'hidden', [names.get(i, i) for i in new_state if not i.startswith('_') and i not in listed])
     msgs = []
     for it in items:
         iid, name = it['bizItemId'], it.get('name') or ''
@@ -127,14 +132,15 @@ def main():
             if prev:
                 new_state[iid] = prev  # keep the old state so nothing is alerted twice
             continue
-        log(name, 'free days', len(free), dict(sorted(free.items())[:10]))
-        new_state[iid] = {'live': True, 'free': free}
+        log(name, 'free days', len(free), dict(sorted(free.items())[:6]))
+        new_state[iid] = {'live': bool(free), 'free': free}
         if first:
             continue  # first look: learn quietly
-        if prev is None or not prev.get('live'):
+        if not (prev or {}).get('live'):
             if free:
-                msgs.append(f'🔔 데시디자인 예약 오픈: {name}\n자리 있는 날: '
-                            + ', '.join(f'{day_label(d)} {n}자리' for d, n in sorted(free.items())[:15]) + '\n' + link)
+                msgs.append(f'🔔 데시디자인 예약 열림: {name}\n자리 있는 날: '
+                            + ', '.join(f'{day_label(d)} {n}자리' for d, n in sorted(free.items())[:12])
+                            + (f' 외 {len(free) - 12}일' if len(free) > 12 else '') + '\n' + link)
             continue
         for d, n in sorted(free.items()):
             if d not in prev.get('free', {}):
