@@ -13,6 +13,7 @@ on:
         default: false
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: duns-stock
   cancel-in-progress: false
@@ -30,6 +31,12 @@ jobs:
       SKIP_SHOPS: presentproject  # checked by fast.yml
     steps:
       - uses: actions/checkout@v4
+      - name: Queue the next run
+        # GitHub's schedule can leave hours between runs, so each run lines up the next one itself
+        if: ${{ !inputs.test_message }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST repos/${{ github.repository }}/actions/workflows/check.yml/dispatches -f ref=main || true
       - name: Send test message
         if: ${{ inputs.test_message }}
         run: python3 check_stock.py --test-message

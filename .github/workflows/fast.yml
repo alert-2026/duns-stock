@@ -9,6 +9,9 @@ on:
 concurrency:
   group: fast
   cancel-in-progress: false
+permissions:
+  contents: read
+  actions: write
 jobs:
   loop:
     runs-on: ubuntu-latest
@@ -22,6 +25,11 @@ jobs:
       CHROME_PATH: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
+      - name: Queue the next run
+        # GitHub's schedule can leave hours between runs, so each run lines up the next one itself
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST repos/${{ github.repository }}/actions/workflows/fast.yml/dispatches -f ref=main || true
       - name: Restore state
         uses: actions/cache/restore@v4
         with:
