@@ -18,7 +18,6 @@ def api(path, raw=False):
     with urllib.request.urlopen(req, timeout=60) as r:
         b=r.read()
     return b.decode('utf-8','replace') if raw else json.loads(b)
-for rid in (40806046939,):
 for j in api('/repos/%s/actions/runs/42163291861/jobs'%R)['jobs']:
     if 'cc' not in j['name']: continue
     t=logs('/repos/%s/actions/jobs/%d/logs'%(R,j['id']))
