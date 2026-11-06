@@ -18,12 +18,16 @@ def api(path, raw=False):
     with urllib.request.urlopen(req, timeout=60) as r:
         b=r.read()
     return b.decode('utf-8','replace') if raw else json.loads(b)
-for rid in (40806046939,):
-    for j in api('/repos/%s/actions/runs/%d/jobs'%(R,rid))['jobs']:
-        if 'cc' not in j['name']: continue
-        t=logs('/repos/%s/actions/jobs/%d/logs'%(R,j['id']))
-        prev=None
-        for l in t.split('\n'):
-            if re.search(r'(재입고|신상|already|changes=|SKIP|stopped|Error|2507|2508)',l): print(l[29:180])
-            m=re.search(r'(\d\d:\d\d:\d\d) run: cuddlybunny:(\d+)',l)
-            if m and m.group(2)!=prev: print(m.group(1),'count',m.group(2)); prev=m.group(2)
+
+seen=set()
+for wf in ('quick.yml','check.yml','fast.yml'):
+    runs=api('/repos/%s/actions/workflows/%s/runs?per_page=40&created=>=2026-11-05T15:00:00Z'%(R,wf))['workflow_runs']
+    for run in sorted(runs,key=lambda r:r['created_at']):
+        if run['status']!='completed': continue
+        for j in api('/repos/%s/actions/runs/%d/jobs'%(R,run['id']))['jobs']:
+            if wf=='quick.yml' and 'cc' not in j['name']: continue
+            try: t=logs('/repos/%s/actions/jobs/%d/logs'%(R,j['id']))
+            except Exception as e: print('ERR',wf,j['id'],e); continue
+            print('==',wf,run['run_number'],j['name'],j['started_at'],j['completed_at'])
+            for l in t.split('\n'):
+                if '미니커플샷' in l or re.search(r'coupleshot:\d+/',l) or 'coupleshot' in l and ('rror' in l or 'fail' in l): print(l[29:200])
