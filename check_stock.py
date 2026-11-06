@@ -615,13 +615,23 @@ def main():
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
         quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
-        if kinds[key] in ('cafe24', 'littleluna'):
+        if kinds[key] in ('cafe24', 'littleluna', 'coupleshot'):
             # Cafe24 caches each list page on its own and the order shifts, so the same item can look sold out
             # on one page and on sale on another: when the list disagrees with what we knew, ask its own page
             flips = [it for it in items if known.get(it['id']) and bool(known[it['id']].get('soldout')) != it['soldout']]
             with ThreadPoolExecutor(max_workers=8) as ex:
                 pages = list(ex.map(fetch_or_none, [it['url'] for it in flips[:40]])) + [None] * len(flips[40:])
             for it, page in zip(flips, pages):
+                if kinds[key] == 'coupleshot':
+                    # Mini Couple Shot can list an item twice with different marks (11/6: Kimono Body on page 1
+                    # on sale, on page 5 sold out), so the item flipped every check: its own page decides
+                    found = parsers.parse_sizes(page) if page else None
+                    if found:
+                        it['sizes'], it['sizes_out'] = found
+                        it['soldout'] = not found[0]
+                    elif not page:  # couldn't open it: keep what we knew
+                        it['soldout'] = bool(known[it['id']].get('soldout'))
+                    continue  # a page without size options: the list decides, as before
                 m = re.search(r"is_soldout_icon\s*=\s*'([TF])'", page or '')
                 if not m:  # can't tell: keep what we knew
                     it['soldout'] = bool(known[it['id']].get('soldout'))
