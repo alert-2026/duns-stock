@@ -45,6 +45,8 @@ SHOPS = [
     ('rulii', '루리샵', 'https://m.rulii.co.kr/category/$1/338', 'cafe24', False),
     ('mimilemonde', '미미르몽드', 'https://mimilemonde.com/39', 'imweb', False),
     ('foretforet', '포레포레', 'https://www.foretforet.com/shop/shopbrand.html?xcode=021&mcode=001&scode=090&type=Y', 'foret', True),
+    # not Duns: samee also wants Foret Foret's Misha & Puff (asked 11/7)
+    ('foretmisha', '포레포레 · 미샤앤퍼프', 'https://www.foretforet.com/shop/shopbrand.html?xcode=021&mcode=001&scode=232&type=Y', 'foret', True),
     ('coconjennie', '코코앤제니', 'https://coconjennie.com/untitled-31', 'sixshop', True),
     ('coconjennie2', '코코앤제니', 'https://coconjennie.com/untitled-52', 'sixshop', True),
     ('blingandon', '블링앤온', 'https://www.blingandon.com/dunssweden', 'sixshop', True),
@@ -76,7 +78,7 @@ CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD'
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR',
             'junioredition': 'GBP', 'kurate': 'KRW'}
 SOOR = {'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # sent by the Soor Ploom bot
-NOT_DUNS = {'presentproject'} | SOOR  # alerts without the 던스스웨덴 label
+NOT_DUNS = {'presentproject', 'foretmisha'} | SOOR  # alerts without the 던스스웨덴 label
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -319,15 +321,16 @@ def more_pages(page, url, kind, first, key):
 
 
 FORET_LIST = ('https://www.foretforet.com/shop/product_list.action.html?action_mode=get_list&page=%d'
-              '&sep1=021&xcode=021&mcode=001&scode=090&type=Y&sort=manual&soldout_sort=Y&is_list_buy=0')
+              '&sep1=021&xcode=021&mcode=001&scode={scode}&type=Y&sort=manual&soldout_sort=Y&is_list_buy=0')
 
 
 def foret_items(url):
-    """All Foret Foret Duns items: the category page shows 12, the rest come from this JSON list (88 pages)."""
+    """All Foret Foret items of a brand: the category page shows 12, the rest come from this JSON list (88 pages)."""
+    scode = re.search(r'scode=(\d+)', url).group(1)  # the brand: 090 Duns, 232 Misha & Puff
     def get(n):
         for attempt in (1, 2):
             try:
-                return json.loads(fetch(FORET_LIST % n))
+                return json.loads(fetch(FORET_LIST.format(scode=scode) % n))
             except (OSError, ValueError):
                 if attempt == 2:
                     raise
@@ -461,7 +464,7 @@ def telegram_send(text, soor=False):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'mimilemonde'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'foretmisha', 'mimilemonde'}
 
 
 def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
