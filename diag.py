@@ -1,13 +1,9 @@
-import sys, re
+import sys, re, html
 sys.path.insert(0, '.')
 import check_stock as cs
-p = cs.fetch('https://www.foretforet.com/shop/shopbrand.html?xcode=021&mcode=001&scode=090&type=Y')
-for m in re.finditer(r'<a[^>]*href="([^"]*shopbrand[^"]*)"[^>]*>(.*?)</a>', p, flags=re.S|re.I):
-    t = re.sub(r'<[^>]+>', '', m.group(2)).strip()
-    if re.search(r'misha|미샤|puff|퍼프|duns|던스', m.group(1)+t, flags=re.I): print(m.group(1), '|', t[:60])
-print('---all brand links (021)')
-seen=set()
-for m in re.finditer(r'href="([^"]*xcode=021[^"]*)"[^>]*>(.*?)</a>', p, flags=re.S|re.I):
-    t = re.sub(r'<[^>]+>', '', m.group(2)).strip()
-    if m.group(1) in seen: continue
-    seen.add(m.group(1)); print(m.group(1), '|', t[:50])
+for u in ('https://www.foretforet.com/shop/shopbrand.html?xcode=021&mcode=001&scode=090&type=Y','https://www.foretforet.com/'):
+    p = html.unescape(cs.fetch(u))
+    print('==',u,len(p))
+    for m in re.finditer(r'(misha|미샤|퍼프|puff)', p, flags=re.I):
+        print(p[max(0,m.start()-250):m.start()+80].replace('\n',' '))
+        print('--')
