@@ -1,0 +1,18 @@
+001&scode=232&type=Y 303 Counter({True: 216, False: 87})
+  False WINTER26[미샤앤퍼프]칼리코 스카우트 탑-SA26KALSV30002CF 138,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281395&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]캔디플로스 팔로마 탑-SA26KALSV31122B4 138,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281404&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]캔디플로스 스카우트 탑-SA26KALSV31462CB 138,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281405&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]칼리코 팔로마 탑-SA26KALSV31122CF 138,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281605&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]브뤼 스카우트 탑-SA26KALSV3000255 132,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281393&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]아콘 스타우트 탑-SA26KALSV3000203 132,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281391&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]슬레이트 스카우트 탑-SA26KALSV3000679 132,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281380&xcode=021&mcode=001&scod
+  False WINTER26[미샤앤퍼프]슬레이트 터틀넥-SA26KALSV3110679 128,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10281392&xcode=021&mcode=001&scod
+001&scode=090&type=Y 1050 Counter({True: 767, False: 283})
+  False FALL26[던스스웨덴]브라운 토마토 반팔 티셔츠-DS26KASSV0175TDB 46,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279675&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]브라운 토마토 반바지-DS26KASHT0165TDB 47,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279730&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]브라운 토마토 긴팔 개더 원피스-DS26KADRE0170TDB 76,500원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279670&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]브라운 토마토 덩가리-DS26KABDS0168TDB 56,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279668&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]브라운 토마토 플레이수트-DS26KAPLS0174TDB 55,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279674&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]브라운 토마토 썸머수트-DS26KABDS0176TDB 55,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279676&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]브라운 토마토 랩넥 수트-DS26KABDS0172TDB 56,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279672&xcode=021&mcode=001&scod
+  False FALL26[던스스웨덴]핑크 토마토 반바지-DS26KASHT0179TPK 47,000원 https://www.foretforet.com/shop/shopdetail.html?branduid=10279679&xcode=021&mcode=001&scod
