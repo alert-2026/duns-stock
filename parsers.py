@@ -55,6 +55,9 @@ def parse_cafe24(page, base, class_marker=True):
     after = [x for x in starts if x > anchor] if anchor >= 0 else []
     start = after[0] if after else starts[0]
     nxt = [x for x in starts if x > start]
+    # Bonats' skin has a menu built as a product list right before the real one: skip lists without product boxes
+    while nxt and 'anchorBoxId_' not in s[start:nxt[0]] and 'anchorBoxId_' in s[nxt[0]:]:
+        start, nxt = nxt[0], nxt[1:]
     ends = [i for i in (s.find('xans-product-normalpaging', start), nxt[0] if nxt else -1) if i > 0]
     region = s[start:min(ends)] if ends else s[start:start + 400000]
     # flatten nested spec lists (they contain <li class="xans-record-"> too)

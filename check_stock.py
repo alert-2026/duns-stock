@@ -64,6 +64,8 @@ SHOPS = [
     ('mnklsoor', '엠엔케이엘 · 수어플룸', 'https://mnkl.co.kr/category/soor-ploom/228/', 'cafe24', False),
     # not a Duns shop: samee also wants Present Project's own products (whole shop)
     ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
+    # not a Duns shop: samee also wants Bonats' own products (whole shop, asked 11/13); restocks open at set times
+    ('bonats', '보나츠', 'https://bonats.co.kr/product/list.html?cate_no=24', 'bonats', False),
     # overseas shops samee shared on 2026-10-20 (the starred ones); all Shopify, sizes included
     ('modernrascals', '모던래스컬즈(캐나다)', 'https://modernrascals.ca/collections/duns-sweden', 'shopify', False),
     ('varabarn', '바라반(캐나다)', 'https://varabarn.ca/collections/duns-sweden', 'shopify', False),
@@ -78,7 +80,7 @@ CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD'
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR',
             'junioredition': 'GBP', 'kurate': 'KRW'}
 SOOR = {'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # sent by the Soor Ploom bot
-NOT_DUNS = {'presentproject', 'foretmisha'} | SOOR  # alerts without the 던스스웨덴 label
+NOT_DUNS = {'presentproject', 'foretmisha', 'bonats'} | SOOR  # alerts without the 던스스웨덴 label
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -186,8 +188,8 @@ def fetch_rendered(url, key):
 def parse(kind, page, url):
     if kind == 'cafe24':
         return parsers.parse_cafe24(page, url)
-    if kind == 'littleluna':
-        # its skin prints a "SOLD OUT" span on every item (shown via CSS), so only icons count
+    if kind in ('littleluna', 'bonats'):
+        # their skins print a "SOLD OUT" span on every item (shown via CSS), so only the 품절 icons count
         return parsers.parse_cafe24(page, url, class_marker=False)
     return getattr(parsers, 'parse_' + kind)(page, url)
 
@@ -258,7 +260,7 @@ def alert_block(label, it):
     return '\n'.join(lines + [it['url']])
 
 
-PAGED = ('cafe24', 'littleluna', 'bbambam', 'coupleshot', 'imweb', 'sixshop')
+PAGED = ('cafe24', 'bonats', 'littleluna', 'bbambam', 'coupleshot', 'imweb', 'sixshop')
 
 
 def more_pages(page, url, kind, first, key):
@@ -354,6 +356,29 @@ def foret_items(url):
     return items
 
 
+BONATS_TIMER = 'https://bonats.co.kr/web/open_timer/bonats-open-timer.json'
+
+
+def bonats_not_open(items):
+    """Bonats lists restocks before they open (a countdown, e.g. 11/13 22:00): count them as sold out until then,
+    so the alert comes when they can be bought."""
+    try:
+        events = json.loads(fetch(BONATS_TIMER)).get('events') or []
+    except Exception:  # noqa: BLE001 - without the timer the list decides, as for other shops
+        return
+    now = datetime.now(KST)
+    later = set()
+    for ev in events:
+        try:
+            if ev.get('enabled') and datetime.fromisoformat(ev['openAt']) > now:
+                later |= {str(x) for x in ev.get('products') or []}
+        except (KeyError, TypeError, ValueError):
+            continue
+    for it in items:
+        if it['id'] in later:
+            it['soldout'] = it['not_open'] = True
+
+
 def check_shop(shop):
     key, name, url, kind, js = shop
     try:
@@ -367,6 +392,12 @@ def check_shop(shop):
                     it['price'] = '%s %s' % (it['min_price'], cur)
         elif kind == 'foret':
             items, page = foret_items(url), ''
+        elif kind == 'bonats':
+            page = fetch(url)
+            items = parse(kind, page, url)
+            if items:
+                items += more_pages(page, url, kind, items, key)
+                bonats_not_open(items)
         else:
             page = fetch_rendered(url, key) if js else fetch(url)
             items = parse(kind, page, url)
@@ -464,7 +495,7 @@ def telegram_send(text, soor=False):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'foretmisha', 'mimilemonde'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'foretmisha', 'mimilemonde', 'bonats'}
 
 
 def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
@@ -618,10 +649,11 @@ def main():
         # pages 2..N were read from 2026-10-12; until a shop's later pages are known, learn them quietly
         # (those items were already for sale, so they must not all arrive as new items)
         quiet = not any(isinstance(v, dict) and v.get('page', 1) > 1 for v in known.values())
-        if kinds[key] in ('cafe24', 'littleluna', 'coupleshot'):
+        if kinds[key] in ('cafe24', 'bonats', 'littleluna', 'coupleshot'):
             # Cafe24 caches each list page on its own and the order shifts, so the same item can look sold out
             # on one page and on sale on another: when the list disagrees with what we knew, ask its own page
-            flips = [it for it in items if known.get(it['id']) and bool(known[it['id']].get('soldout')) != it['soldout']]
+            flips = [it for it in items if known.get(it['id']) and bool(known[it['id']].get('soldout')) != it['soldout']
+                     and not it.get('not_open')]
             with ThreadPoolExecutor(max_workers=8) as ex:
                 pages = list(ex.map(fetch_or_none, [it['url'] for it in flips[:40]])) + [None] * len(flips[40:])
             for it, page in zip(flips, pages):
@@ -666,13 +698,16 @@ def main():
                     changes.append(('신상', names[key], it))
                     n_changes += 1
             elif old.get('soldout') and not it['soldout'] and not learn_only:
-                changes.append(('재입고', names[key], it))
+                # Bonats: an item first listed with a countdown was never on sale before it opened, so it is new
+                changes.append(('신상' if old.get('pre_open') else '재입고', names[key], it))
                 n_changes += 1
             elif 'sizes' in old and not learn_only and not it['soldout'] and set(it.get('sizes', [])) - set(old['sizes']):
                 # a size came back on an item that was already partly on sale
                 it['new_sizes'] = [x for x in it['sizes'] if x not in old['sizes']]
                 changes.append(('사이즈 재입고', names[key], it))
                 n_changes += 1
+            if it.get('not_open') and (old is None or old.get('pre_open')):
+                it['pre_open'] = True
             known[it['id']] = {k: v for k, v in dict(it, last_seen=now).items() if k != 'new_sizes'}
             seen_now[(names[key], it['id'])] = None if it['soldout'] else set(it['sizes']) if 'sizes' in it else True
         summary.append('%s:%d%s' % (key, len(items), ('/+%d' % n_changes) if n_changes else ''))
