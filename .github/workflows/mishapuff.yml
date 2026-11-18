@@ -1,0 +1,61 @@
+# Misha & Puff early access (samee asked 11/18): alerts once when the Coming Soon items in /collections/preview
+# turn buyable (the VIP early-access emails link there). One page every 30 seconds; each run loops for ~50 minutes.
+name: mishapuff
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [check_mishapuff.py, .github/workflows/mishapuff.yml]
+concurrency:
+  group: mishapuff
+  cancel-in-progress: false
+permissions:
+  contents: write
+  actions: write
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Queue the next run
+        # GitHub's schedule can leave hours between runs, so each run lines up the next one itself
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST repos/${{ github.repository }}/actions/workflows/mishapuff.yml/dispatches -f ref=main || true
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: mishapuff-state.json
+          key: mishapuff-${{ github.run_id }}
+          restore-keys: mishapuff-
+      - name: check every 30 seconds
+        run: |
+          publish() {  # copies the log to the mishapuff-status branch so it can be read without opening Actions
+            rm -rf /tmp/pub; mkdir /tmp/pub; cp mishapuff-log.txt mishapuff-state.json /tmp/pub/ 2>/dev/null || true
+            auth=$(git config --get http.https://github.com/.extraheader)
+            (cd /tmp/pub && git init -q -b mishapuff-status && git add -A \
+              && git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "Misha & Puff check log" \
+              && git -c http.extraheader="$auth" push -qf "https://github.com/${{ github.repository }}" mishapuff-status) || true
+          }
+          end=$((SECONDS + 50*60)); n=0
+          while [ $SECONDS -lt $end ]; do
+            start=$SECONDS
+            git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_mishapuff.py || true
+            timeout 60 python3 check_mishapuff.py || true
+            n=$((n+1)); [ $n -eq 1 ] && publish
+            wait=$((30 - (SECONDS - start))); [ $wait -lt 1 ] && wait=1
+            sleep $wait
+          done
+          tail -c 200000 mishapuff-log.txt > /tmp/l && mv /tmp/l mishapuff-log.txt; publish
+      - name: Save state
+        if: ${{ always() && hashFiles('mishapuff-state.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: mishapuff-state.json
+          key: mishapuff-${{ github.run_id }}
