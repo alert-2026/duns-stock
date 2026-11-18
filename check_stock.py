@@ -66,6 +66,8 @@ SHOPS = [
     ('presentproject', '프레젠트프로젝트', 'https://present-project.love/20', 'imweb', False),
     # not a Duns shop: samee also wants Bonats' own products (whole shop, asked 11/13); restocks open at set times
     ('bonats', '보나츠', 'https://bonats.co.kr/product/list.html?cate_no=24', 'bonats', False),
+    # not a Duns shop: samee also wants Off Off Studio's own products (whole shop, asked 11/18)
+    ('ofofstudio', '오프오프스튜디오', 'https://ofofstudio.com/product/list.html?cate_no=87', 'cafe24', False),
     # overseas shops samee shared on 2026-10-20 (the starred ones); all Shopify, sizes included
     ('modernrascals', '모던래스컬즈(캐나다)', 'https://modernrascals.ca/collections/duns-sweden', 'shopify', False),
     ('varabarn', '바라반(캐나다)', 'https://varabarn.ca/collections/duns-sweden', 'shopify', False),
@@ -80,7 +82,7 @@ CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD'
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR',
             'junioredition': 'GBP', 'kurate': 'KRW'}
 SOOR = {'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # sent by the Soor Ploom bot
-NOT_DUNS = {'presentproject', 'foretmisha', 'bonats'} | SOOR  # alerts without the 던스스웨덴 label
+NOT_DUNS = {'presentproject', 'foretmisha', 'bonats', 'ofofstudio'} | SOOR  # alerts without the 던스스웨덴 label
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -495,7 +497,7 @@ def telegram_send(text, soor=False):
 
 # shops whose product pages show per-size stock; scanned only where SIZE_SCAN=1 (GitHub),
 # since opening every product page each minute on the Mac would be too many requests
-SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'foretmisha', 'mimilemonde', 'bonats'}
+SIZE_SCAN_SHOPS = {'gurm', 'gurmnew', 'cuddlybunny', 'pulev', 'babybubble', 'checkanddot', 'checkanddotsoor', 'mariecloset', 'mnklsoor', 'rulii', 'coupleshot', 'foretforet', 'foretmisha', 'mimilemonde', 'bonats', 'ofofstudio'}
 
 
 def scan_sizes(results, state, shops=SIZE_SCAN_SHOPS):
