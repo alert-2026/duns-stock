@@ -1,5 +1,7 @@
 # Misha & Puff early access (samee asked 11/18): alerts once when the Coming Soon items in /collections/preview
 # turn buyable (the VIP early-access emails link there). One page every 30 seconds; each run loops for ~50 minutes.
+# Since 11/20 also the whole shop's stock (check_stock.py shop 'mishapuff', 7 products.json pages) every ~2 minutes:
+# [재입고], [신상], [사이즈 재입고] like the other shops.
 name: mishapuff
 on:
   schedule:
@@ -7,7 +9,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [check_mishapuff.py, .github/workflows/mishapuff.yml]
+    paths: [check_mishapuff.py, .github/workflows/mishapuff.yml]  # check_stock.py changes are picked up within a check
 concurrency:
   group: mishapuff
   cancel-in-progress: false
@@ -31,13 +33,15 @@ jobs:
       - name: Restore state
         uses: actions/cache/restore@v4
         with:
-          path: mishapuff-state.json
+          path: |
+            mishapuff-state.json
+            mishapuff-shop-state.json
           key: mishapuff-${{ github.run_id }}
           restore-keys: mishapuff-
       - name: check every 30 seconds
         run: |
           publish() {  # copies the log to the mishapuff-status branch so it can be read without opening Actions
-            rm -rf /tmp/pub; mkdir /tmp/pub; cp mishapuff-log.txt mishapuff-state.json /tmp/pub/ 2>/dev/null || true
+            rm -rf /tmp/pub; mkdir /tmp/pub; cp mishapuff-log.txt mishapuff-state.json /tmp/pub/ 2>/dev/null || true; tail -300 log.txt > /tmp/pub/shop-log.txt 2>/dev/null || true
             auth=$(git config --get http.https://github.com/.extraheader)
             (cd /tmp/pub && git init -q -b mishapuff-status && git add -A \
               && git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "Misha & Puff check log" \
@@ -46,8 +50,12 @@ jobs:
           end=$((SECONDS + 50*60)); n=0
           while [ $SECONDS -lt $end ]; do
             start=$SECONDS
-            git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_mishapuff.py || true
+            git fetch -q --depth 1 origin main && git checkout -q FETCH_HEAD -- check_mishapuff.py check_stock.py parsers.py || true
             timeout 60 python3 check_mishapuff.py || true
+            # the whole shop every 4th check (~2 minutes)
+            if [ $((n % 4)) -eq 0 ]; then
+              ONLY_SHOPS=mishapuff STATE_FILE=mishapuff-shop-state.json timeout 100 python3 check_stock.py > /dev/null || echo "shop check stopped early (exit $?)"
+            fi
             n=$((n+1)); [ $n -eq 1 ] && publish
             wait=$((30 - (SECONDS - start))); [ $wait -lt 1 ] && wait=1
             sleep $wait
@@ -57,5 +65,7 @@ jobs:
         if: ${{ always() && hashFiles('mishapuff-state.json') != '' }}
         uses: actions/cache/save@v4
         with:
-          path: mishapuff-state.json
+          path: |
+            mishapuff-state.json
+            mishapuff-shop-state.json
           key: mishapuff-${{ github.run_id }}

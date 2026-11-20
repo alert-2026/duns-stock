@@ -68,6 +68,9 @@ SHOPS = [
     ('bonats', '보나츠', 'https://bonats.co.kr/product/list.html?cate_no=24', 'bonats', False),
     # not a Duns shop: samee also wants Off Off Studio's own products (whole shop, asked 11/18)
     ('ofofstudio', '오프오프스튜디오', 'https://ofofstudio.com/product/list.html?cate_no=87', 'cafe24', False),
+    # not Duns: Misha & Puff's own US shop, whole shop (~1,600 products, 7 pages; samee asked 11/20).
+    # Read every ~2 minutes by mishapuff.yml only (OWN_LANE), so the shop isn't hit by every loop
+    ('mishapuff', '미샤앤퍼프 공식몰', 'https://shop.misha-and-puff.com', 'shopify', False),
     # overseas shops samee shared on 2026-10-20 (the starred ones); all Shopify, sizes included
     ('modernrascals', '모던래스컬즈(캐나다)', 'https://modernrascals.ca/collections/duns-sweden', 'shopify', False),
     ('varabarn', '바라반(캐나다)', 'https://varabarn.ca/collections/duns-sweden', 'shopify', False),
@@ -80,9 +83,10 @@ SHOPS = [
 # Shopify prices are in the shop's own money
 CURRENCY = {'official': 'SEK', 'happylittleattic': 'EUR', 'modernrascals': 'CAD', 'varabarn': 'CAD', 'thegreencrib': 'USD',
             'strawberrymeerkat': 'GBP', 'littletigertogs': 'GBP', 'hooplakids': 'NZD', 'goedvantoen': 'EUR',
-            'junioredition': 'GBP', 'kurate': 'KRW'}
+            'junioredition': 'GBP', 'kurate': 'KRW', 'mishapuff': 'USD'}
 SOOR = {'checkanddotsoor', 'ideeshop', 'junioredition', 'mariecloset', 'kurate', 'mnklsoor'}  # sent by the Soor Ploom bot
-NOT_DUNS = {'presentproject', 'foretmisha', 'bonats', 'ofofstudio'} | SOOR  # alerts without the 던스스웨덴 label
+NOT_DUNS = {'presentproject', 'foretmisha', 'bonats', 'ofofstudio', 'mishapuff'} | SOOR  # alerts without the 던스스웨덴 label
+OWN_LANE = {'mishapuff'}  # checked only when ONLY_SHOPS names them (their own workflow)
 DUNS_ONLY = {'gurmnew'}  # shop-wide pages: keep only Duns products
 IMWEB_HOSTS = {re.match(r'https?://[^/]+', s[2]).group(0) for s in SHOPS if s[3] == 'imweb'}
 MAX_PAGES = 40  # list pages read per Cafe24 shop
@@ -608,7 +612,7 @@ def main():
     # ONLY_SHOPS / SKIP_SHOPS let the fast GitHub loop watch some shops every minute on their own
     only = set(filter(None, os.environ.get('ONLY_SHOPS', '').split(',')))
     skip = set(filter(None, os.environ.get('SKIP_SHOPS', '').split(',')))
-    SHOPS = [x for x in SHOPS if (not only or x[0] in only) and x[0] not in skip]
+    SHOPS = [x for x in SHOPS if (x[0] in only if only or x[0] in OWN_LANE else True) and x[0] not in skip]
     state = load_json(STATE, {})
     # sizes saved before 10/16 kept Cafe24's escaped slash (74\/80); fix them so they don't look like new sizes
     for shop in state.values():
